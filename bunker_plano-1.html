@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Búnker · Estado en Tiempo Real</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+:root {
+  --bg:      #080b0f;
+  --s1:      #0e1218;
+  --s2:      #141921;
+  --border:  #1a2030;
+  --border2: #243040;
+  --accent:  #00e5a0;
+  --sun:     #f59e0b;
+  --danger:  #ff3b3b;
+  --blue:    #3b82f6;
+  --purple:  #a855f7;
+  --text:    #e2e8f0;
+  --dim:     #64748b;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Syne', sans-serif;
+}
+
+html,body { height:100%; }
+body {
+  background:var(--bg); color:var(--text);
+  font-family:var(--sans); min-height:100vh; overflow-x:hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,160,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,160,.022) 1px,transparent 1px);
+  background-size:32px 32px;
+  pointer-events:none; z-index:0;
+}
+
+.wrap { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:36px 18px 80px; }
+
+/* HEADER */
+header { margin-bottom:32px; }
+.logo-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.badge { background:var(--accent); color:var(--bg); font-family:var(--mono); font-size:9px; font-weight:700; padding:3px 8px; letter-spacing:2px; }
+.live { width:7px; height:7px; background:var(--accent); border-radius:50%; box-shadow:0 0 8px var(--accent); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.2;} }
+h1 { font-size:clamp(22px,4vw,36px); font-weight:800; letter-spacing:-1px; line-height:1.1; }
+h1 span { color:var(--accent); }
+.sub { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:6px; letter-spacing:1px; }
+
+/* WEATHER BAR */
+.wx-bar { display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:4px; overflow:hidden; margin-bottom:28px; }
+.wx-cell { background:var(--s1); padding:12px 14px; }
+.wx-label { font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:2px; margin-bottom:5px; }
+.wx-val { font-family:var(--mono); font-size:16px; font-weight:700; }
+@media(max-width:520px){ .wx-bar{grid-template-columns:repeat(3,1fr);} }
+
+/* FLOOR LABEL */
+.floor-label { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:3px; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+.floor-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* SVG room interactions */
+.room { cursor:pointer; }
+.room-bg { fill:#0c1520; stroke:#1e2f45; stroke-width:1.5; transition:fill .25s,stroke .25s; }
+.room:hover .room-bg { fill:#111e30; stroke:var(--accent); }
+.room.active .room-bg { fill:#0f1e32; stroke:var(--accent); stroke-width:2; filter:drop-shadow(0 0 6px rgba(0,229,160,.25)); }
+.room-lbl { font-family:'Space Mono',monospace; font-size:8px; fill:#4a6080; letter-spacing:1px; pointer-events:none; transition:fill .2s; text-transform:uppercase; }
+.room:hover .room-lbl,.room.active .room-lbl { fill:var(--accent); }
+.room-val { font-family:'Space Mono',monospace; font-size:12px; font-weight:700; fill:#e2e8f0; pointer-events:none; }
+.room-hum { font-family:'Space Mono',monospace; font-size:9px; fill:#3b82f6; pointer-events:none; }
+.room-extra { font-family:'Space Mono',monospace; font-size:8px; fill:#64748b; pointer-events:none; }
+
+.furn { fill:#060d18; stroke:#182030; stroke-width:1; }
+.glass-hatch { fill:url(#glass); opacity:.35; }
+
+.ray { stroke:#f59e0b; stroke-width:1.2; stroke-dasharray:6,4; opacity:0; animation:ray-anim 3s ease-in-out infinite; }
+.ray:nth-child(2){animation-delay:.4s;}
+.ray:nth-child(3){animation-delay:.8s;}
+.ray:nth-child(4){animation-delay:1.2s;}
+.ray:nth-child(5){animation-delay:1.6s;}
+.ray:nth-child(6){animation-delay:2s;}
+@keyframes ray-anim { 0%,100%{opacity:0;stroke-dashoffset:20;} 50%{opacity:.8;stroke-dashoffset:0;} }
+
+.blind-open   { fill:none; stroke:#2d4a2d; stroke-width:2; stroke-dasharray:3,3; }
+.blind-closed { fill:rgba(245,158,11,.12); stroke:#f59e0b; stroke-width:2; }
+
+/* DETAIL PANEL */
+.detail-panel { background:var(--s1); border:1px solid var(--border); border-radius:4px; overflow:hidden; min-height:180px; margin-top:20px; transition:border-color .3s; }
+.detail-panel.on { border-color:var(--accent); }
+.placeholder { display:flex; align-items:center; justify-content:center; height:180px; font-family:var(--mono); font-size:11px; color:var(--dim); letter-spacing:2px; }
+.d-head { background:rgba(0,229,160,.05); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.d-name { font-weight:800; font-size:15px; }
+.d-tag { font-family:var(--mono); font-size:9px; padding:3px 8px; border-radius:2px; letter-spacing:1px; font-weight:700; }
+.tag-sun   { background:var(--sun);    color:#000; }
+.tag-nosun { background:var(--dim);    color:#fff; }
+.tag-glass { background:var(--blue);   color:#fff; }
+.tag-alarm { background:var(--accent); color:#000; }
+.tag-wash  { background:var(--purple); color:#fff; }
+
+.d-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:16px 20px; }
+@media(max-width:500px){ .d-grid{grid-template-columns:1fr 1fr;} }
+
+.m-card { background:var(--s2); border:1px solid var(--border); border-radius:3px; padding:12px; text-align:center; transition:border-color .2s; }
+.m-card:hover { border-color:var(--border2); }
+.m-card.pending { opacity:.45; }
+.m-icon { font-size:16px; margin-bottom:5px; }
+.m-val  { font-family:var(--mono); font-size:20px; font-weight:700; line-height:1; margin-bottom:3px; }
+.m-unit { font-family:var(--mono); font-size:9px; color:var(--dim); }
+
+.d-auto  { margin:0 20px 16px; background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.25); border-radius:3px; padding:12px 14px; font-family:var(--mono); font-size:11px; color:var(--sun); line-height:1.7; display:none; }
+.d-notes { margin:0 20px 16px; font-family:var(--mono); font-size:11px; color:var(--dim); line-height:1.7; border-top:1px solid var(--border); padding-top:12px; }
+
+/* LEGEND */
+.legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-family:var(--mono); font-size:10px; color:var(--dim); }
+.leg-item { display:flex; align-items:center; gap:6px; }
+.leg-dot { width:7px; height:7px; border-radius:50%; }
+
+footer { margin-top:40px; border-top:1px solid var(--border); padding-top:20px; text-align:center; font-family:var(--mono); font-size:10px; color:var(--dim); letter-spacing:1px; line-height:1.9; }
+footer a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo-row">
+    <span class="badge">CAPA CERO</span>
+    <div class="live"></div>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px">BÚNKER · PLANO EN VIVO</span>
+  </div>
+  <h1>Estado del <span>Búnker</span></h1>
+  <p class="sub">// toca cada zona · datos reales · home assistant local</p>
+</header>
+
+<div class="wx-bar">
+  <div class="wx-cell">
+    <div class="wx-label">EXTERIOR</div>
+    <div class="wx-val" style="color:var(--accent)">19,7°C</div>
+  </div>
+  <div class="wx-cell">
+    <div class="wx-label">HUM. EXT</div>
+    <div class="wx-val" style="color:var(--blue)">56%</div>
+  </div>
+  <div class="wx-cell">
+    <div class="wx-label">SOL</div>
+    <div class="wx-val" style="font-size:13px" id="wx-sol">—</div>
+  </div>
+  <div class="wx-cell">
+    <div class="wx-label">PERSIANAS</div>
+    <div class="wx-val" style="font-size:13px;color:var(--sun)" id="wx-blind">—</div>
+  </div>
+  <div class="wx-cell">
+    <div class="wx-label">HORA</div>
+    <div class="wx-val" style="color:var(--dim);font-size:15px" id="wx-time">—</div>
+  </div>
+</div>
+
+<div class="floor-label">PLANO INTERACTIVO · BÚNKER</div>
+
+<svg class="fp-svg" viewBox="0 0 680 510" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">
+<defs>
+  <pattern id="glass" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="8" x2="8" y2="0" stroke="#3b82f6" stroke-width=".8"/>
+  </pattern>
+  <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:.4"/>
+    <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+  </radialGradient>
+</defs>
+
+<!-- NORTE label -->
+<text x="340" y="14" text-anchor="middle" font-family="Space Mono" font-size="8" fill="#2d3f55" letter-spacing="3">▲ NORTE · SIN SOL DIRECTO</text>
+
+<!-- ══ TERRAZA ACRISTALADA ══ -->
+<g class="room" id="room-terraza" onclick="pick('terraza')">
+  <rect class="room-bg" x="20" y="20" width="400" height="90" rx="2"/>
+  <rect x="22" y="22" width="396" height="86" class="glass-hatch" rx="1"/>
+  <line x1="100" y1="22" x2="100" y2="108" stroke="#3b82f6" stroke-width=".6" opacity=".4"/>
+  <line x1="180" y1="22" x2="180" y2="108" stroke="#3b82f6" stroke-width=".6" opacity=".4"/>
+  <line x1="260" y1="22" x2="260" y2="108" stroke="#3b82f6" stroke-width=".6" opacity=".4"/>
+  <line x1="340" y1="22" x2="340" y2="108" stroke="#3b82f6" stroke-width=".6" opacity=".4"/>
+  <text x="50" y="68" font-size="18" text-anchor="middle" opacity=".45">🌿</text>
+  <text x="110" y="68" font-size="16" text-anchor="middle" opacity=".35">🪴</text>
+  <text class="room-lbl" x="250" y="52" text-anchor="middle">TERRAZA ACRISTALADA</text>
+  <text class="room-val" x="250" y="72" text-anchor="middle" id="t-terraza">19,8°C</text>
+  <text class="room-hum" x="250" y="88" text-anchor="middle" id="h-terraza">51,9%</text>
+  <text x="398" y="38" font-size="12" text-anchor="middle" opacity=".4">🌫️</text>
+  <text x="398" y="50" font-size="7" fill="#4a6080" text-anchor="middle" font-family="Space Mono">N.SOL</text>
+</g>
+
+<!-- ══ LAVANDERÍA ══ -->
+<g class="room" id="room-lavanderia" onclick="pick('lavanderia')">
+  <rect class="room-bg" x="440" y="20" width="220" height="90" rx="2"/>
+  <!-- secadora -->
+  <rect class="furn" x="455" y="32" width="44" height="44" rx="4"/>
+  <circle cx="477" cy="54" r="13" fill="none" stroke="#1a2535" stroke-width="1.5"/>
+  <circle cx="477" cy="54" r="7"  fill="none" stroke="#1a2535" stroke-width="1"/>
+  <!-- enchufe S60 -->
+  <rect x="512" y="38" width="34" height="22" rx="3" fill="rgba(168,85,247,.15)" stroke="#a855f7" stroke-width="1"/>
+  <text x="529" y="53" font-size="8" fill="#a855f7" text-anchor="middle" font-family="Space Mono">S60</text>
+  <text class="room-lbl" x="580" y="48" text-anchor="middle">LAVANDERÍA</text>
+  <text class="room-extra" x="580" y="62" text-anchor="middle">SECADORA</text>
+  <text class="room-val" x="580" y="82" text-anchor="middle">STANDBY</text>
+  <text x="529" y="68" font-size="7" fill="#64748b" text-anchor="middle" font-family="Space Mono">SECADORA</text>
+</g>
+
+<!-- separador terraza / planta principal -->
+<line x1="20" y1="110" x2="660" y2="110" stroke="#243040" stroke-width="3"/>
+<line x1="420" y1="20"  x2="420" y2="110" stroke="#1a2030" stroke-width="2"/>
+
+<!-- ══ SALÓN ══ -->
+<g class="room" id="room-salon" onclick="pick('salon')">
+  <rect class="room-bg" x="20" y="110" width="330" height="145" rx="2"/>
+  <rect class="furn" x="40" y="200" width="95" height="32" rx="3"/>
+  <rect class="furn" x="140" y="190" width="32" height="42" rx="3"/>
+  <rect class="furn" x="50" y="120" width="140" height="15" rx="2"/>
+  <text x="120" y="131" font-size="7" fill="#2d3f55" text-anchor="middle" font-family="Space Mono">TV</text>
+  <!-- enchufes TV + Audio -->
+  <rect x="200" y="119" width="28" height="17" rx="2" fill="rgba(168,85,247,.15)" stroke="#a855f7" stroke-width="1"/>
+  <text x="214" y="131" font-size="7" fill="#a855f7" text-anchor="middle" font-family="Space Mono">TV</text>
+  <rect x="234" y="119" width="28" height="17" rx="2" fill="rgba(168,85,247,.15)" stroke="#a855f7" stroke-width="1"/>
+  <text x="248" y="131" font-size="7" fill="#a855f7" text-anchor="middle" font-family="Space Mono">AUD</text>
+  <text class="room-lbl" x="175" y="162" text-anchor="middle">SALÓN</text>
+  <text class="room-val" x="175" y="182" text-anchor="middle" id="t-salon">24,4°C</text>
+  <text class="room-hum" x="175" y="198" text-anchor="middle">—</text>
+</g>
+
+<!-- ══ COCINA ══ -->
+<g class="room" id="room-cocina" onclick="pick('cocina')">
+  <rect class="room-bg" x="370" y="110" width="290" height="145" rx="2"/>
+  <rect class="furn" x="380" y="119" width="270" height="26" rx="2"/>
+  <rect class="furn" x="638" y="119" width="20" height="132" rx="2"/>
+  <!-- lavadora -->
+  <rect class="furn" x="390" y="165" width="44" height="44" rx="4"/>
+  <circle cx="412" cy="187" r="13" fill="none" stroke="#1a2535" stroke-width="1.5"/>
+  <circle cx="412" cy="187" r="7"  fill="none" stroke="#1a2535" stroke-width="1"/>
+  <rect x="444" y="171" width="34" height="22" rx="3" fill="rgba(168,85,247,.15)" stroke="#a855f7" stroke-width="1"/>
+  <text x="461" y="186" font-size="8" fill="#a855f7" text-anchor="middle" font-family="Space Mono">S60</text>
+  <text x="461" y="197" font-size="7" fill="#64748b" text-anchor="middle" font-family="Space Mono">LAVADORA</text>
+  <text class="room-lbl" x="530" y="158" text-anchor="middle">COCINA</text>
+  <text class="room-val" x="530" y="220" text-anchor="middle">STANDBY</text>
+</g>
+
+<!-- separador salón/cocina -->
+<line x1="350" y1="110" x2="350" y2="275" stroke="#1a2030" stroke-width="2"/>
+
+<!-- pasillo -->
+<rect x="20" y="275" width="640" height="16" fill="#060b12"/>
+<line x1="20" y1="283" x2="660" y2="283" stroke="#1a2030" stroke-width="1" stroke-dasharray="5,4"/>
+<text x="340" y="287" text-anchor="middle" font-family="Space Mono" font-size="7" fill="#243040" letter-spacing="3">PASILLO</text>
+
+<!-- ══ SUR label ══ -->
+<text x="340" y="504" text-anchor="middle" font-family="Space Mono" font-size="8" id="sur-lbl" fill="#f59e0b" letter-spacing="3" opacity=".4">▼ SUR · SOL DIRECTO</text>
+
+<!-- ══ HAB NIÑOS 1 ══ -->
+<g class="room" id="room-hab1" onclick="pick('hab1')">
+  <rect class="room-bg" x="20" y="291" width="188" height="115" rx="2"/>
+  <rect class="furn" x="30" y="300" width="65" height="52" rx="3"/>
+  <circle cx="188" cy="348" r="22" fill="url(#sunGrad)" id="sg1" opacity="0"/>
+  <rect id="blind-hab1" x="20" y="291" width="188" height="7" rx="1" class="blind-open"/>
+  <text class="room-lbl" x="114" y="310" text-anchor="middle">HAB. NIÑOS 1</text>
+  <text class="room-val" x="114" y="332" text-anchor="middle" id="t-hab1">23,9°C</text>
+  <text class="room-hum" x="114" y="348" text-anchor="middle" id="h-hab1">50,8%</text>
+  <text class="room-extra" x="114" y="364" text-anchor="middle" id="bl-hab1">PERSIANA: ABIERTA</text>
+  <text x="180" y="304" font-size="10" text-anchor="middle" id="si1" opacity="0">☀️</text>
+</g>
+
+<!-- ══ HAB NIÑOS 2 ══ -->
+<g class="room" id="room-hab2" onclick="pick('hab2')">
+  <rect class="room-bg" x="228" y="291" width="188" height="115" rx="2"/>
+  <rect class="furn" x="238" y="300" width="65" height="52" rx="3"/>
+  <circle cx="396" cy="348" r="22" fill="url(#sunGrad)" id="sg2" opacity="0"/>
+  <rect id="blind-hab2" x="228" y="291" width="188" height="7" rx="1" class="blind-open"/>
+  <text class="room-lbl" x="322" y="310" text-anchor="middle">HAB. NIÑOS 2</text>
+  <text class="room-val" x="322" y="332" text-anchor="middle" id="t-hab2">23,9°C</text>
+  <text class="room-hum" x="322" y="348" text-anchor="middle" id="h-hab2">50,8%</text>
+  <text class="room-extra" x="322" y="364" text-anchor="middle" id="bl-hab2">PERSIANA: ABIERTA</text>
+  <text x="388" y="304" font-size="10" text-anchor="middle" id="si2" opacity="0">☀️</text>
+</g>
+
+<!-- ══ DORMITORIO PADRES ══ -->
+<g class="room" id="room-dorm" onclick="pick('dorm')">
+  <rect class="room-bg" x="436" y="291" width="224" height="115" rx="2"/>
+  <rect class="furn" x="446" y="300" width="105" height="68" rx="3"/>
+  <circle cx="636" cy="348" r="22" fill="url(#sunGrad)" id="sg3" opacity="0"/>
+  <rect id="blind-dorm" x="436" y="291" width="224" height="7" rx="1" class="blind-open"/>
+  <text class="room-lbl" x="548" y="310" text-anchor="middle">DORM. PADRES</text>
+  <text class="room-val" x="548" y="332" text-anchor="middle" id="t-dorm">23,6°C</text>
+  <text class="room-hum" x="548" y="348" text-anchor="middle" id="h-dorm">51,0%</text>
+  <text class="room-extra" x="548" y="364" text-anchor="middle" id="bl-dorm">PERSIANA: ABIERTA</text>
+  <text x="628" y="304" font-size="10" text-anchor="middle" id="si3" opacity="0">☀️</text>
+</g>
+
+<!-- separaciones hab -->
+<line x1="208" y1="291" x2="208" y2="406" stroke="#1a2030" stroke-width="2"/>
+<line x1="416" y1="291" x2="416" y2="406" stroke="#1a2030" stroke-width="2"/>
+
+<!-- ══ ENTRADA ══ -->
+<g class="room" id="room-entrada" onclick="pick('entrada')">
+  <rect class="room-bg" x="20" y="424" width="160" height="62" rx="2"/>
+  <rect id="alarm-rect" x="30" y="436" width="36" height="26" rx="3" fill="rgba(0,229,160,.1)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="48" y="453" font-size="13" text-anchor="middle">🔔</text>
+  <text class="room-lbl" x="120" y="442" text-anchor="middle">ENTRADA</text>
+  <text class="room-extra" x="120" y="457" text-anchor="middle" id="alarm-st">DISARM</text>
+  <text x="48" y="472" font-size="7" fill="#64748b" text-anchor="middle" font-family="Space Mono">SafeMax I20</text>
+</g>
+
+<!-- fondo zona sur hab (continuación visual) -->
+<line x1="20" y1="406" x2="660" y2="406" stroke="#1a2030" stroke-width="1.5"/>
+<line x1="180" y1="406" x2="180" y2="486" stroke="#1a2030" stroke-width="1.5"/>
+
+<!-- rayos sol -->
+<g id="rays" style="opacity:0;transition:opacity 1.2s">
+  <line class="ray" x1="30"  y1="510" x2="75"  y2="406"/>
+  <line class="ray" x1="110" y1="510" x2="150" y2="406"/>
+  <line class="ray" x1="240" y1="510" x2="275" y2="406"/>
+  <line class="ray" x1="360" y1="510" x2="390" y2="406"/>
+  <line class="ray" x1="480" y1="510" x2="510" y2="406"/>
+  <line class="ray" x1="590" y1="510" x2="620" y2="406"/>
+</g>
+
+<!-- pared exterior -->
+<rect x="20" y="20" width="640" height="466" fill="none" stroke="#2d3f55" stroke-width="2.5" rx="2"/>
+</svg>
+
+<!-- LEYENDA -->
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:var(--accent)"></div><span>Sensor activo</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--sun)"></div><span>Sol directo · sur</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div><span>Acristalado · norte</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div><span>Enchufe Sonoff S60</span></div>
+  <div class="leg-item"><div class="leg-dot" style="background:var(--dim)"></div><span>Sin sensor / pendiente</span></div>
+</div>
+
+<!-- PANEL DETALLE -->
+<div class="detail-panel" id="dpanel">
+  <div class="placeholder" id="dph">// TOCA UNA ZONA DEL PLANO</div>
+  <div id="dcon" style="display:none">
+    <div class="d-head">
+      <div class="d-name" id="dname">—</div>
+      <span class="d-tag" id="dtag">—</span>
+    </div>
+    <div class="d-grid" id="dgrid"></div>
+    <div class="d-auto" id="dauto"></div>
+    <div class="d-notes" id="dnotes"></div>
+  </div>
+</div>
+
+<footer>
+  CAPA CERO · Búnker · Home Assistant OS + Zigbee 3.0 · Sin cloud · Sin suscripciones<br>
+  Raspberry Pi 3 · Sonoff ZBDongle-E · 4× S60ZBTPF · 3× Zbeacon TH01 · SafeMax I20<br>
+  <a href="https://globaldomotica.substack.com">globaldomotica.substack.com</a>
+</footer>
+</div>
+
+<script>
+const ROOMS = {
+  terraza:{
+    name:'🌿 Terraza Acristalada', tag:'ACRISTALADA · NORTE', tagClass:'tag-glass', sol:false,
+    metrics:[
+      {i:'🌡️',l:'TEMPERATURA',v:'19,8°C', c:'var(--accent)',u:'Zigbee TH01'},
+      {i:'💧',l:'HUMEDAD',    v:'51,95%', c:'var(--blue)',  u:'Zigbee TH01'},
+      {i:'🪟',l:'VIDRIO',    v:'TRIPLE',  c:'var(--blue)',  u:'acristalado'},
+      {i:'☀️',l:'IRRADIANCIA',v:'DIFUSA', c:'var(--dim)',   u:'orientación N'},
+      {i:'💨',l:'CO₂',       v:'—',       c:'var(--dim)',   u:'pendiente',p:true},
+      {i:'🔌',l:'CONSUMO',   v:'—',       c:'var(--dim)',   u:'sin enchufe',p:true},
+    ],
+    notes:'Terraza norte con acristalado triple. Temperatura ~4°C inferior al interior. Zona de plantas. Sin sol directo en ningún momento del día. Humedad ligeramente superior por la vegetación.',
+  },
+  lavanderia:{
+    name:'🫧 Lavandería', tag:'ENCHUFE ZIGBEE', tagClass:'tag-wash', sol:false,
+    metrics:[
+      {i:'🔌',l:'SECADORA',  v:'STANDBY', c:'var(--purple)',u:'Sonoff S60ZBTPF'},
+      {i:'⚡',l:'CONSUMO',   v:'<5W',     c:'var(--accent)',u:'standby medido'},
+      {i:'📊',l:'CICLO',     v:'INACTIVO',c:'var(--dim)',   u:'sin ciclo activo'},
+      {i:'🔔',l:'NOTIF.',    v:'ACTIVA',  c:'var(--accent)',u:'fin ciclo <10W/2min'},
+      {i:'🌡️',l:'TEMP.',    v:'—',       c:'var(--dim)',   u:'sin sensor',p:true},
+      {i:'💨',l:'CO₂',      v:'—',       c:'var(--dim)',   u:'pendiente',p:true},
+    ],
+    auto:'🔔 AUTOMATIZACIÓN: Notificación push cuando consumo < 10W durante 2 minutos → secadora terminada.',
+    notes:'Zona separada de la terraza principal. Sonoff S60 monitoriza la secadora en tiempo real. La misma lógica de detección de fin de ciclo que la lavadora.',
+  },
+  salon:{
+    name:'🛋️ Salón', tag:'SIN SOL DIRECTO', tagClass:'tag-nosun', sol:false,
+    metrics:[
+      {i:'🌡️',l:'TEMPERATURA',v:'24,4°C',  c:'var(--warn)',  u:'ref. Tydom'},
+      {i:'📺',l:'TELEVISIÓN', v:'STANDBY', c:'var(--purple)',u:'Sonoff S60ZBTPF'},
+      {i:'🔊',l:'AUDIO TV',   v:'STANDBY', c:'var(--purple)',u:'Sonoff S60ZBTPF'},
+      {i:'💧',l:'HUMEDAD',    v:'—',       c:'var(--dim)',   u:'sin sensor',p:true},
+      {i:'💨',l:'CO₂',        v:'—',       c:'var(--dim)',   u:'pendiente',p:true},
+      {i:'💡',l:'LUZ',        v:'—',       c:'var(--dim)',   u:'sin sensor',p:true},
+    ],
+    notes:'Zona central. Temperatura de referencia del termostato Tydom (ALB RF 6050 vía Tydom 1.0). Dos enchufes Sonoff miden standby de TV y audio. Sin incidencia solar directa.',
+  },
+  cocina:{
+    name:'🍳 Cocina', tag:'ENCHUFE ZIGBEE', tagClass:'tag-wash', sol:false,
+    metrics:[
+      {i:'🔌',l:'LAVADORA',  v:'STANDBY', c:'var(--purple)',u:'Sonoff S60ZBTPF'},
+      {i:'⚡',l:'CONSUMO',   v:'<5W',     c:'var(--accent)',u:'standby medido'},
+      {i:'📊',l:'CICLO',     v:'INACTIVO',c:'var(--dim)',   u:'sin ciclo activo'},
+      {i:'🔔',l:'NOTIF.',    v:'ACTIVA',  c:'var(--accent)',u:'fin ciclo <10W/2min'},
+      {i:'🌡️',l:'TEMP.',    v:'—',       c:'var(--dim)',   u:'sin sensor',p:true},
+      {i:'💨',l:'CO₂',      v:'—',       c:'var(--dim)',   u:'pendiente',p:true},
+    ],
+    auto:'🔔 AUTOMATIZACIÓN: Notificación push cuando consumo < 10W durante 2 minutos → lavadora terminada.',
+    notes:'Sonoff S60 en la lavadora. Candidata para sensor TH01 — los vapores de cocina afectan al confort general. También sería útil un enchufe en el lavavajillas si existe.',
+  },
+  hab1:{
+    name:'🧒 Hab. Niños 1', tag:'SOL DIRECTO ☀️', tagClass:'tag-sun', sol:true, persiana:true,
+    metrics:[
+      {i:'🌡️',l:'TEMPERATURA',v:'23,9°C', c:'var(--warn)',  u:'Zigbee TH01'},
+      {i:'💧',l:'HUMEDAD',    v:'50,75%', c:'var(--blue)',  u:'Zigbee TH01'},
+      {i:'☀️',l:'SOL',        v:'DIRECTO',c:'var(--sun)',   u:'fachada sur'},
+      {i:'🪟',l:'PERSIANA',   v:'AUTO',   c:'var(--sun)',   u:'↓10:00 ↑13:30'},
+      {i:'🌡️',l:'ΔT TERRAZA', v:'+4,1°C', c:'var(--warn)',  u:'diferencial'},
+      {i:'💨',l:'CO₂',        v:'—',      c:'var(--dim)',   u:'pendiente',p:true},
+    ],
+    auto:'🪟 AUTOMATIZACIÓN PERSIANA: Baja a las 10:00 si temperatura > 25°C · Sube a las 13:30 cuando el sol deja la fachada sur.',
+    notes:'Fachada sur con sol directo. Puede superar 26°C en verano sin persiana activa. La automatización protege de la ganancia térmica excesiva. Sensor TH01 calibrado con offset -0,3°C.',
+  },
+  hab2:{
+    name:'🧒 Hab. Niños 2', tag:'SOL DIRECTO ☀️', tagClass:'tag-sun', sol:true, persiana:true,
+    metrics:[
+      {i:'🌡️',l:'TEMPERATURA',v:'23,9°C', c:'var(--warn)',  u:'Zigbee TH01'},
+      {i:'💧',l:'HUMEDAD',    v:'50,75%', c:'var(--blue)',  u:'Zigbee TH01'},
+      {i:'☀️',l:'SOL',        v:'DIRECTO',c:'var(--sun)',   u:'fachada sur'},
+      {i:'🪟',l:'PERSIANA',   v:'AUTO',   c:'var(--sun)',   u:'↓10:00 ↑13:30'},
+      {i:'🌡️',l:'ΔT EXTERIOR',v:'+4,2°C', c:'var(--warn)',  u:'diferencial'},
+      {i:'💨',l:'CO₂',        v:'—',      c:'var(--dim)',   u:'pendiente',p:true},
+    ],
+    auto:'🪟 AUTOMATIZACIÓN PERSIANA: Baja a las 10:00 si temperatura > 25°C · Sube a las 13:30 cuando el sol deja la fachada sur.',
+    notes:'Comparte orientación sur con hab. 1. Misma lógica de persiana automatizada. El monitoreo detecta desequilibrios de temperatura entre habitaciones.',
+  },
+  dorm:{
+    name:'🛏️ Dormitorio Padres', tag:'SOL DIRECTO ☀️', tagClass:'tag-sun', sol:true, persiana:true,
+    metrics:[
+      {i:'🌡️',l:'TEMPERATURA',v:'23,6°C', c:'var(--warn)',  u:'Zigbee TH01'},
+      {i:'💧',l:'HUMEDAD',    v:'50,95%', c:'var(--blue)',  u:'Zigbee TH01'},
+      {i:'☀️',l:'SOL',        v:'DIRECTO',c:'var(--sun)',   u:'fachada sur'},
+      {i:'🪟',l:'PERSIANA',   v:'AUTO',   c:'var(--sun)',   u:'↓10:00 ↑13:30'},
+      {i:'🌡️',l:'ΔT TERRAZA', v:'+3,8°C', c:'var(--warn)',  u:'diferencial'},
+      {i:'💨',l:'CO₂',        v:'—',      c:'var(--dim)',   u:'pendiente',p:true},
+    ],
+    auto:'🪟 AUTOMATIZACIÓN PERSIANA: Baja a las 10:00 si temperatura > 25°C · Sube a las 13:30 cuando el sol deja la fachada sur.',
+    notes:'Sensor TH01 calibrado offset -0,1°C. Temperatura ligeramente inferior a las hab. niños — posible mejor ventilación cruzada. En invierno la ganancia solar pasiva es un activo térmico.',
+  },
+  entrada:{
+    name:'🔔 Entrada', tag:'ALARMA INTEGRADA', tagClass:'tag-alarm', sol:false,
+    metrics:[
+      {i:'🛡️',l:'ALARMA',     v:'DISARM', c:'var(--accent)',u:'SafeMax I20'},
+      {i:'📡',l:'PROTOCOLO',  v:'LOCAL',  c:'var(--accent)',u:'192.168.1.81'},
+      {i:'🏠',l:'INTEGRACIÓN',v:'HA',     c:'var(--accent)',u:'web interface'},
+      {i:'🔑',l:'MODOS',      v:'3',      c:'var(--dim)',   u:'total·int·desarm'},
+      {i:'📋',l:'HISTORIAL',  v:'ACTIVO', c:'var(--dim)',   u:'log en HA'},
+      {i:'📱',l:'NOTIF.',     v:'ACTIVA', c:'var(--accent)',u:'push HA'},
+    ],
+    notes:'SafeMax I20 integrada en Home Assistant vía interfaz web local. Sin cloud, sin app propietaria. Modos: armado total, armado interior y desarmado. Historial de eventos en HA.',
+  },
+};
+
+/* SOLAR */
+function solar() {
+  const h=new Date().getHours(), m=new Date().getMinutes(), t=h+m/60;
+  if(t<7||t>20)  return {label:'🌙 NOCHE',    on:false, pct:0};
+  if(t<10)        return {label:'🌅 AMANECER', on:true,  pct:.35};
+  if(t<14)        return {label:'☀️ MAÑANA',  on:true,  pct:.95};
+  if(t<17)        return {label:'☀️ MEDIODÍA',on:true,  pct:1};
+  if(t<19)        return {label:'🌤️ TARDE',   on:true,  pct:.55};
+  return                 {label:'🌆 ATARDECER',on:true,  pct:.2};
+}
+
+function blindStatus() {
+  const h=new Date().getHours(), m=new Date().getMinutes(), t=h+m/60;
+  if(t>=10&&t<13.5) return {label:'BAJADA 🟡',closed:true};
+  return                   {label:'ABIERTA ✅',closed:false};
+}
+
+function tick() {
+  const now=new Date();
+  document.getElementById('wx-time').textContent=
+    String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const sol=solar(), bld=blindStatus();
+  const wxSol=document.getElementById('wx-sol');
+  wxSol.textContent=sol.label;
+  wxSol.style.color=sol.on?'var(--sun)':'var(--dim)';
+  document.getElementById('wx-blind').textContent=bld.label;
+
+  // rayos
+  document.getElementById('rays').style.opacity=sol.on?sol.pct:0;
+  ['sg1','sg2','sg3'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el) el.style.opacity=sol.on?sol.pct*.75:0;
+  });
+  ['si1','si2','si3'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.opacity=sol.on?sol.pct:0;
+  });
+  const surLbl=document.getElementById('sur-lbl');
+  if(surLbl) surLbl.style.opacity=sol.on?'1':'0.3';
+
+  // persianas
+  ['hab1','hab2','dorm'].forEach(id=>{
+    const bl=document.getElementById('blind-'+id);
+    const tx=document.getElementById('bl-'+id);
+    if(!bl||!tx) return;
+    if(bld.closed){
+      bl.setAttribute('class','blind-closed');
+      tx.textContent='PERSIANA: BAJADA';
+      tx.setAttribute('fill','#f59e0b');
+    } else {
+      bl.setAttribute('class','blind-open');
+      tx.textContent='PERSIANA: ABIERTA';
+      tx.setAttribute('fill','#4a6080');
+    }
+  });
+}
+
+/* PICK */
+let cur=null;
+function pick(id){
+  if(cur) document.getElementById('room-'+cur)?.classList.remove('active');
+  cur=id;
+  document.getElementById('room-'+id)?.classList.add('active');
+  const r=ROOMS[id]; if(!r) return;
+  document.getElementById('dpanel').classList.add('on');
+  document.getElementById('dph').style.display='none';
+  document.getElementById('dcon').style.display='block';
+  document.getElementById('dname').textContent=r.name;
+  const tag=document.getElementById('dtag');
+  tag.textContent=r.tag; tag.className='d-tag '+r.tagClass;
+  const grid=document.getElementById('dgrid');
+  grid.innerHTML='';
+  r.metrics.forEach(m=>{
+    const c=document.createElement('div');
+    c.className='m-card'+(m.p?' pending':'');
+    c.innerHTML=`<div class="m-icon">${m.i}</div>
+      <div class="m-val" style="color:${m.c}">${m.v}</div>
+      <div class="m-unit">${m.u}</div>`;
+    grid.appendChild(c);
+  });
+  const da=document.getElementById('dauto');
+  if(r.auto){da.style.display='block';da.textContent=r.auto;}
+  else da.style.display='none';
+  document.getElementById('dnotes').textContent='// '+r.notes;
+  setTimeout(()=>document.getElementById('dpanel').scrollIntoView({behavior:'smooth',block:'nearest'}),120);
+}
+
+tick();
+setInterval(tick,30000);
+setTimeout(()=>pick('salon'),500);
+</script>
+</body>
+</html>
