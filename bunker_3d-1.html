@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Búnker 3D · Capa Cero</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#05080c;--accent:#00e5a0;--sun:#f59e0b;
+  --danger:#ff3b3b;--blue:#3b82f6;--purple:#a855f7;
+  --text:#e2e8f0;--dim:#4a5568;
+  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+
+/* CANVAS */
+#c{display:block;width:100%;height:100%;touch-action:none;}
+
+/* HUD OVERLAY */
+#hud{
+  position:fixed;inset:0;pointer-events:none;
+  font-family:var(--mono);
+}
+
+/* TOP BAR */
+#topbar{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;
+  background:linear-gradient(180deg,rgba(5,8,12,.95) 0%,transparent 100%);
+  pointer-events:auto;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.badge{background:var(--accent);color:#000;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 8px;letter-spacing:2px;}
+.live-dot{width:6px;height:6px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.title-sm{font-family:var(--sans);font-size:14px;font-weight:700;color:var(--text);}
+
+.wx-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{
+  background:rgba(14,18,24,.9);border:1px solid rgba(255,255,255,.08);
+  border-radius:3px;padding:6px 10px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  display:flex;align-items:center;gap:6px;
+}
+.chip span{font-weight:700;}
+
+/* BOTTOM PANEL — room info */
+#roomPanel{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(0deg,rgba(5,8,12,.98) 60%,transparent 100%);
+  padding:24px 20px 20px;
+  transform:translateY(100%);
+  transition:transform .4s cubic-bezier(.4,0,.2,1);
+  pointer-events:auto;
+}
+#roomPanel.open{transform:translateY(0);}
+
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.panel-name{font-family:var(--sans);font-size:18px;font-weight:800;color:var(--text);}
+.panel-tag{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:2px;font-weight:700;letter-spacing:1px;}
+.tag-sun{background:var(--sun);color:#000;}
+.tag-nosun{background:var(--dim);color:#fff;}
+.tag-glass{background:var(--blue);color:#fff;}
+.tag-alarm{background:var(--accent);color:#000;}
+.tag-wash{background:var(--purple);color:#fff;}
+
+.metrics-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;}
+.metric{
+  flex-shrink:0;
+  background:rgba(20,25,33,.9);border:1px solid rgba(255,255,255,.07);
+  border-radius:4px;padding:12px 14px;min-width:90px;text-align:center;
+}
+.metric.pending{opacity:.4;}
+.m-ico{font-size:16px;margin-bottom:4px;}
+.m-v{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1;margin-bottom:3px;}
+.m-u{font-family:var(--mono);font-size:9px;color:var(--dim);}
+
+.panel-auto{
+  margin-top:10px;padding:10px 12px;
+  background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);
+  border-radius:3px;font-size:11px;color:var(--sun);line-height:1.6;
+  display:none;
+}
+.panel-close{
+  background:none;border:1px solid rgba(255,255,255,.1);color:var(--dim);
+  font-family:var(--mono);font-size:11px;padding:6px 12px;cursor:pointer;
+  border-radius:3px;transition:border-color .2s,color .2s;
+}
+.panel-close:hover{border-color:var(--accent);color:var(--accent);}
+
+/* CONTROLS HINT */
+#hint{
+  position:absolute;bottom:20px;right:20px;
+  font-family:var(--mono);font-size:9px;color:var(--dim);
+  text-align:right;line-height:1.8;letter-spacing:1px;
+  pointer-events:none;
+}
+
+/* TIME */
+#timebox{
+  position:absolute;top:70px;right:20px;
+  font-family:var(--mono);font-size:11px;color:var(--dim);
+  text-align:right;line-height:1.8;
+  pointer-events:none;
+}
+#timebox .big-time{font-size:22px;color:var(--accent);font-weight:700;display:block;}
+
+/* LOADING */
+#loading{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;z-index:100;
+  font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:2px;
+  transition:opacity .5s;
+}
+.load-bar{width:200px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden;}
+.load-fill{height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:1px;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text)">BÚNKER <span style="color:var(--accent)">3D</span></div>
+  <div class="load-bar"><div class="load-fill" id="loadfill"></div></div>
+  <div id="load-msg">Iniciando escena...</div>
+</div>
+
+<canvas id="c"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="brand">
+      <span class="badge">CAPA CERO</span>
+      <div class="live-dot"></div>
+      <span class="title-sm">Búnker · 3D en vivo</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <a href="bunker.html"
+         style="display:flex;align-items:center;gap:6px;padding:7px 12px;
+                background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.3);
+                border-radius:3px;text-decoration:none;
+                font-family:var(--mono);font-size:10px;color:var(--accent);
+                transition:background .2s;"
+         onmouseover="this.style.background='rgba(0,229,160,.14)'"
+         onmouseout="this.style.background='rgba(0,229,160,.06)'">
+        ← Plano 2D
+      </a>
+      <div class="wx-chips">
+      <div class="chip">🌡️ Ext <span id="wx-ext" style="color:var(--accent)">19,7°C</span></div>
+      <div class="chip">💧 <span id="wx-hum" style="color:var(--blue)">56%</span></div>
+      <div class="chip" id="wx-sol-chip">☀️ <span id="wx-sol">—</span></div>
+      <div class="chip">🪟 <span id="wx-blind" style="color:var(--sun)">—</span></div>
+    </div>
+    </div>
+  </div>
+
+  <!-- TIME -->
+  <div id="timebox">
+    <span class="big-time" id="clock">—</span>
+    <span id="date-str">—</span>
+  </div>
+
+  <!-- ROOM PANEL -->
+  <div id="roomPanel">
+    <div class="panel-header">
+      <div class="panel-name" id="pname">—</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="panel-tag" id="ptag">—</span>
+        <button class="panel-close" onclick="closePanel()">✕ cerrar</button>
+      </div>
+    </div>
+    <div class="metrics-row" id="pmetrics"></div>
+    <div class="panel-auto" id="pauto"></div>
+  </div>
+
+  <!-- HINT -->
+  <div id="hint">
+    ARRASTRAR · rotar<br>
+    PELLIZCAR · zoom<br>
+    TOCAR habitación · info
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ══════════════════════════════════════
+   DATOS ROOMS
+══════════════════════════════════════ */
+const ROOMS_DATA = {
+  terraza:{
+    name:'🌿 Terraza Acristalada',tag:'ACRISTALADA · N',tagClass:'tag-glass',sol:false,
+    color:0x0a1a2e,
+    metrics:[
+      {i:'🌡️',l:'TEMP',v:'19,8°C',c:'#00e5a0'},{i:'💧',l:'HUMEDAD',v:'51,9%',c:'#3b82f6'},
+      {i:'🪟',l:'VIDRIO',v:'TRIPLE',c:'#3b82f6'},{i:'☀️',l:'SOL',v:'DIFUSO',c:'#4a5568'},
+      {i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},{i:'🔌',l:'CONSUMO',v:'—',c:'#4a5568',p:true},
+    ],
+    notes:null,
+  },
+  lavanderia:{
+    name:'🫧 Lavandería',tag:'ENCHUFE ZIGBEE',tagClass:'tag-wash',sol:false,
+    color:0x0d1020,
+    metrics:[
+      {i:'🔌',l:'SECADORA',v:'STANDBY',c:'#a855f7'},{i:'⚡',l:'CONSUMO',v:'<5W',c:'#00e5a0'},
+      {i:'🔔',l:'NOTIF.',v:'ACTIVA',c:'#00e5a0'},{i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},
+    ],
+    auto:'🔔 Notificación push cuando consumo < 10W durante 2 min → secadora terminada.',
+  },
+  salon:{
+    name:'🛋️ Salón',tag:'SIN SOL DIRECTO',tagClass:'tag-nosun',sol:false,
+    color:0x0c1828,
+    metrics:[
+      {i:'🌡️',l:'TEMP',v:'24,4°C',c:'#f59e0b'},{i:'📺',l:'TV',v:'STANDBY',c:'#a855f7'},
+      {i:'🔊',l:'AUDIO',v:'STANDBY',c:'#a855f7'},{i:'💧',l:'HUMEDAD',v:'—',c:'#4a5568',p:true},
+      {i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},{i:'💡',l:'LUZ',v:'—',c:'#4a5568',p:true},
+    ],
+  },
+  cocina:{
+    name:'🍳 Cocina',tag:'ENCHUFE ZIGBEE',tagClass:'tag-wash',sol:false,
+    color:0x0d1020,
+    metrics:[
+      {i:'🔌',l:'LAVADORA',v:'STANDBY',c:'#a855f7'},{i:'⚡',l:'CONSUMO',v:'<5W',c:'#00e5a0'},
+      {i:'🔔',l:'NOTIF.',v:'ACTIVA',c:'#00e5a0'},{i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},
+    ],
+    auto:'🔔 Notificación push cuando consumo < 10W durante 2 min → lavadora terminada.',
+  },
+  hab1:{
+    name:'🧒 Hab. Niños 1',tag:'SOL DIRECTO ☀️',tagClass:'tag-sun',sol:true,persiana:true,
+    color:0x1a1206,
+    metrics:[
+      {i:'🌡️',l:'TEMP',v:'23,9°C',c:'#f59e0b'},{i:'💧',l:'HUMEDAD',v:'50,8%',c:'#3b82f6'},
+      {i:'☀️',l:'SOL',v:'DIRECTO',c:'#f59e0b'},{i:'🪟',l:'PERSIANA',v:'AUTO',c:'#f59e0b'},
+      {i:'🌡️',l:'ΔT',v:'+4,1°C',c:'#f59e0b'},{i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},
+    ],
+    auto:'🪟 Persiana baja 10:00 si >25°C · Sube 13:30 cuando el sol deja la fachada sur.',
+  },
+  hab2:{
+    name:'🧒 Hab. Niños 2',tag:'SOL DIRECTO ☀️',tagClass:'tag-sun',sol:true,persiana:true,
+    color:0x1a1206,
+    metrics:[
+      {i:'🌡️',l:'TEMP',v:'23,9°C',c:'#f59e0b'},{i:'💧',l:'HUMEDAD',v:'50,8%',c:'#3b82f6'},
+      {i:'☀️',l:'SOL',v:'DIRECTO',c:'#f59e0b'},{i:'🪟',l:'PERSIANA',v:'AUTO',c:'#f59e0b'},
+      {i:'🌡️',l:'ΔT',v:'+4,2°C',c:'#f59e0b'},{i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},
+    ],
+    auto:'🪟 Persiana baja 10:00 si >25°C · Sube 13:30 cuando el sol deja la fachada sur.',
+  },
+  dorm:{
+    name:'🛏️ Dormitorio Padres',tag:'SOL DIRECTO ☀️',tagClass:'tag-sun',sol:true,persiana:true,
+    color:0x180e06,
+    metrics:[
+      {i:'🌡️',l:'TEMP',v:'23,6°C',c:'#f59e0b'},{i:'💧',l:'HUMEDAD',v:'51,0%',c:'#3b82f6'},
+      {i:'☀️',l:'SOL',v:'DIRECTO',c:'#f59e0b'},{i:'🪟',l:'PERSIANA',v:'AUTO',c:'#f59e0b'},
+      {i:'🌡️',l:'ΔT',v:'+3,8°C',c:'#f59e0b'},{i:'💨',l:'CO₂',v:'—',c:'#4a5568',p:true},
+    ],
+    auto:'🪟 Persiana baja 10:00 si >25°C · Sube 13:30 cuando el sol deja la fachada sur.',
+  },
+  entrada:{
+    name:'🔔 Entrada',tag:'ALARMA',tagClass:'tag-alarm',sol:false,
+    color:0x080e14,
+    metrics:[
+      {i:'🛡️',l:'ALARMA',v:'DISARM',c:'#00e5a0'},{i:'📡',l:'PROTO.',v:'LOCAL',c:'#00e5a0'},
+      {i:'🏠',l:'INTEGR.',v:'HA',c:'#00e5a0'},{i:'🔑',l:'MODOS',v:'3',c:'#4a5568'},
+    ],
+  },
+};
+
+/* ══════════════════════════════════════
+   SOLAR / BLIND STATE
+══════════════════════════════════════ */
+function getSolar(){
+  const h=new Date().getHours(),m=new Date().getMinutes(),t=h+m/60;
+  if(t<7||t>20) return{label:'🌙 NOCHE',on:false,pct:0,az:Math.PI*1.5};
+  if(t<10)  return{label:'🌅 AMANECER',on:true,pct:.3,az:.3};
+  if(t<13)  return{label:'☀️ MAÑANA', on:true,pct:.95,az:.9};
+  if(t<15)  return{label:'☀️ MEDIODÍA',on:true,pct:1, az:Math.PI*.5};
+  if(t<18)  return{label:'🌤️ TARDE',  on:true,pct:.65,az:Math.PI*.7};
+  return          {label:'🌆 ATARDECER',on:true,pct:.2,az:Math.PI*.9};
+}
+function getBlind(){
+  const h=new Date().getHours(),m=new Date().getMinutes(),t=h+m/60;
+  return (t>=10&&t<13.5)?{label:'BAJADA 🟡',closed:true}:{label:'ABIERTA ✅',closed:false};
+}
+
+/* ══════════════════════════════════════
+   SCENE SETUP
+══════════════════════════════════════ */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=.9;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x05080c);
+scene.fog=new THREE.Fog(0x05080c,30,80);
+
+const camera=new THREE.PerspectiveCamera(45,1,0.1,200);
+camera.position.set(16,18,22);
+camera.lookAt(0,0,0);
+
+/* ── RESIZE ── */
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize',resize);
+
+/* ══════════════════════════════════════
+   LIGHTS
+══════════════════════════════════════ */
+const ambient=new THREE.AmbientLight(0x1a2540,1.2);
+scene.add(ambient);
+
+// Sun directional
+const sunLight=new THREE.DirectionalLight(0xfff4e0,0);
+sunLight.castShadow=true;
+sunLight.shadow.mapSize.set(2048,2048);
+sunLight.shadow.camera.near=0.1;
+sunLight.shadow.camera.far=60;
+sunLight.shadow.camera.left=-20;
+sunLight.shadow.camera.right=20;
+sunLight.shadow.camera.top=20;
+sunLight.shadow.camera.bottom=-20;
+sunLight.shadow.bias=-0.001;
+scene.add(sunLight);
+
+// Fill light (norte - frio)
+const fillLight=new THREE.DirectionalLight(0x2040a0,.4);
+fillLight.position.set(-10,8,-10);
+scene.add(fillLight);
+
+// Point lights per room (warm glow)
+const roomLights=[];
+
+/* ══════════════════════════════════════
+   GEOMETRY HELPERS
+══════════════════════════════════════ */
+function box(w,h,d,color,opts={}){
+  const geo=new THREE.BoxGeometry(w,h,d);
+  const mat=new THREE.MeshStandardMaterial({
+    color,roughness:opts.rough??0.8,metalness:opts.metal??0.0,
+    transparent:opts.alpha!==undefined,opacity:opts.alpha??1,
+    side:opts.side??THREE.FrontSide,
+  });
+  const m=new THREE.Mesh(geo,mat);
+  m.castShadow=!opts.noShadow;
+  m.receiveShadow=true;
+  return m;
+}
+
+function wall(w,h,color=0x1a2535){return box(w,h,.18,color,{rough:.9});}
+
+/* ══════════════════════════════════════
+   FLOOR PLAN (units = meters, 1u=1m)
+   Layout:
+   NORTH (z<0):
+     Terraza acristalada z:-8→-5  x:-9→9
+     Lavandería          z:-8→-5  x:4→9
+   MAIN FLOOR (z:-5→0):
+     Salón               x:-9→0
+     Cocina              x:0→9
+   SOUTH (z:0→5):
+     Hab1  x:-9→-3
+     Hab2  x:-3→3
+     Dorm  x:3→9
+   Entrada x:-9→-5  z:5→7
+══════════════════════════════════════ */
+const FLOOR_Y=0;
+const WALL_H=2.8;
+const meshMap={};   // id → mesh (for raycasting)
+const blindMeshes=[];
+
+function addRoom(id,x,z,w,d,wallColor=0x111c2e,floorColor=0x0d1520){
+  const g=new THREE.Group();
+
+  // floor
+  const fl=box(w,.08,d,floorColor,{rough:.95,noShadow:true});
+  fl.position.set(0,-.04,0);
+  fl.receiveShadow=true;
+  g.add(fl);
+  fl.userData={roomId:id};
+  meshMap[id]=fl;
+
+  // ceiling (semi-transparent so we can see inside)
+  const cel=box(w,.05,d,0x0a1020,{rough:1,alpha:.15,noShadow:true,side:THREE.BackSide});
+  cel.position.set(0,WALL_H,0);
+  g.add(cel);
+
+  g.position.set(x,FLOOR_Y,z);
+  scene.add(g);
+  return g;
+}
+
+function addWallSegment(x,y,z,w,h,d,color=0x1e2d42){
+  const m=wall(w,h,color);
+  m.scale.set(w===.18?1:w,1,d===.18?1:d);
+  // reuse box
+  const wm=box(w,h,d,color,{rough:.9});
+  wm.position.set(x,y+h/2,z);
+  wm.castShadow=true;
+  scene.add(wm);
+  return wm;
+}
+
+// ── GROUND PLANE ──
+const ground=new THREE.Mesh(
+  new THREE.PlaneGeometry(60,60),
+  new THREE.MeshStandardMaterial({color:0x030508,roughness:1})
+);
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-.05;
+ground.receiveShadow=true;
+scene.add(ground);
+
+/* ─ ROOM GROUPS ─ */
+// Terraza (north, big)
+addRoom('terraza',-2.5,FLOOR_Y,-6.5,11,4);
+
+// Lavandería (north right corner, smaller)
+// Already part of terraza zone visually — separate floor color
+const lavG=addRoom('lavanderia',6.5,FLOOR_Y,-6.5,4,4);
+
+// Salón
+addRoom('salon',-4.5,FLOOR_Y,-2,9,5);
+
+// Cocina
+addRoom('cocina',4.5,FLOOR_Y,-2,9,5);
+
+// Hab1
+addRoom('hab1',-6,FLOOR_Y,2.5,6,5);
+
+// Hab2
+addRoom('hab2',0,FLOOR_Y,2.5,6,5);
+
+// Dorm
+addRoom('dorm',6,FLOOR_Y,2.5,6,5);
+
+// Entrada
+addRoom('entrada',-7,FLOOR_Y,6,4,4);
+
+/* ─ EXTERIOR WALLS ─ */
+const WC=0x162030;
+// North wall
+addWallSegment(0,0,-9,20,.18,WALL_H,WC);
+// South wall
+addWallSegment(0,0,5,20,.18,WALL_H,WC);
+// West wall
+addWallSegment(-9.09,0,-2,WALL_H,.18,12,WC);
+// East wall
+addWallSegment(9.09,0,-2,WALL_H,.18,12,WC);
+// Interior north-south dividers
+addWallSegment(0,0,-4.5,.18,WALL_H,9,0x0f1928);  // salon/cocina
+addWallSegment(-3,0,2.5,.18,WALL_H,5,0x0f1928);  // hab1/hab2
+addWallSegment(3,0,2.5,.18,WALL_H,5,0x0f1928);   // hab2/dorm
+// Interior east-west (terraza vs main)
+addWallSegment(0,0,-4.5,18,.18,WALL_H,0x0f1928);
+// Terraza / lavanderia divider
+addWallSegment(4.5,0,-6.5,.18,WALL_H,4,0x0f1928);
+
+/* ─ GLASS WALL (terraza north face) ─ */
+const glassMat=new THREE.MeshStandardMaterial({
+  color:0x4080c0,transparent:true,opacity:.18,
+  roughness:.05,metalness:.1,side:THREE.DoubleSide,
+});
+const glassWall=new THREE.Mesh(new THREE.BoxGeometry(20,.18,WALL_H),glassMat);
+glassWall.position.set(0,WALL_H/2,-8.91);
+glassWall.rotation.y=0;
+scene.add(glassWall);
+
+// Glass frames
+for(let i=-8;i<=8;i+=2.5){
+  const frame=box(.08,WALL_H,.08,0x2a4060,{rough:.5,metal:.3});
+  frame.position.set(i,WALL_H/2,-8.91);
+  scene.add(frame);
+}
+
+/* ─ FLOOR DIVIDER LINES (thin strips) ─ */
+function floorLine(x,z,w,d){
+  const m=box(w,.02,d,0x0a1525,{rough:1,noShadow:true});
+  m.position.set(x,.01,z);
+  scene.add(m);
+}
+floorLine(0,-2,18,.04);     // salon/cocina
+floorLine(0,-.5,.04,9);
+floorLine(-3,2.5,.04,5);
+floorLine(3,2.5,.04,5);
+floorLine(0,-4.5,18,.04);   // terraza separator
+
+/* ─ FURNITURE ─ */
+// Sofá salón
+const sofa=box(3,.5,1.2,0x1a2540,{rough:.9});sofa.position.set(-5,FLOOR_Y+.25,-1.5);scene.add(sofa);
+const sofaBack=box(3,.6,.2,0x152035,{rough:.9});sofaBack.position.set(-5,FLOOR_Y+.55,-2);scene.add(sofaBack);
+
+// TV salón
+const tv=box(2,.05,1.1,0x050a10,{rough:.3,metal:.6});tv.position.set(-5,FLOOR_Y+1.2,-4.3);scene.add(tv);
+const tvScreen=box(1.9,.04,1.0,0x001a30,{rough:.1,metal:.8});tvScreen.position.set(-5,FLOOR_Y+1.2,-4.28);scene.add(tvScreen);
+
+// Mesa cocina
+const table=box(1.5,.05,2,0x0d1928,{rough:.7});table.position.set(5,FLOOR_Y+.75,-1.5);scene.add(table);
+
+// Lavadora cocina
+const wash=box(.6,.85,.6,0x0a1525,{rough:.4,metal:.3});wash.position.set(2,FLOOR_Y+.425,-4);scene.add(wash);
+const washFront=box(.55,.55,.05,0x1a3050,{rough:.2,metal:.5});washFront.position.set(2,FLOOR_Y+.6,-3.71);scene.add(washFront);
+
+// Secadora lavandería
+const dry=box(.6,.85,.6,0x0a1525,{rough:.4,metal:.3});dry.position.set(6.5,FLOOR_Y+.425,-6.5);scene.add(dry);
+
+// Camas
+function addBed(x,z){
+  const bed=box(1.4,.35,2,0x0e1830,{rough:.9});bed.position.set(x,FLOOR_Y+.175,z);scene.add(bed);
+  const pillow=box(.5,.12,.4,0x1a2840,{rough:.95});pillow.position.set(x,FLOOR_Y+.41,z-.7);scene.add(pillow);
+}
+addBed(-7,2);
+addBed(-1,2);
+// Cama doble dorm
+const bedD=box(2,.35,2.2,0x120e06,{rough:.9});bedD.position.set(6.5,FLOOR_Y+.175,2);scene.add(bedD);
+const pillowD1=box(.7,.12,.4,0x1e1806,{rough:.95});pillowD1.position.set(5.9,FLOOR_Y+.41,1);scene.add(pillowD1);
+const pillowD2=box(.7,.12,.4,0x1e1806,{rough:.95});pillowD2.position.set(7.1,FLOOR_Y+.41,1);scene.add(pillowD2);
+
+// Plantas terraza
+function addPlant(x,z){
+  const pot=box(.3,.4,.3,0x1a2030,{rough:.8});pot.position.set(x,FLOOR_Y+.2,z);scene.add(pot);
+  const plant=box(.5,.6,.5,0x0a2010,{rough:1});plant.position.set(x,FLOOR_Y+.7,z);scene.add(plant);
+}
+addPlant(-7,-6.5);addPlant(-5,-7);addPlant(-3,-6.8);addPlant(-1,-7);addPlant(1,-6.5);
+
+// Alarma entrada
+const alarm=box(.2,.3,.1,0x0a2520,{rough:.4,metal:.2});alarm.position.set(-8,FLOOR_Y+1.5,5.5);scene.add(alarm);
+
+/* ─ PERSIANA MESHES (sur, zona inferior) ─ */
+function addBlind(x,id){
+  const grp=new THREE.Group();
+  grp.position.set(x,FLOOR_Y,5);
+
+  // slats
+  for(let i=0;i<8;i++){
+    const slat=box(2,.04,.02,0xc8a030,{rough:.7,metal:.1});
+    slat.position.set(0,WALL_H-.35-i*.3,0);
+    grp.add(slat);
+  }
+  grp.userData={blindId:id};
+  scene.add(grp);
+  blindMeshes.push(grp);
+  return grp;
+}
+addBlind(-6,'hab1');
+addBlind(0,'hab2');
+addBlind(6,'dorm');
+
+/* ─ ROOM POINT LIGHTS ─ */
+function addRoomLight(x,z,color=0x1a3060,intensity=.4){
+  const pl=new THREE.PointLight(color,intensity,8);
+  pl.position.set(x,WALL_H*.8,z);
+  pl.castShadow=false;
+  scene.add(pl);
+  roomLights.push(pl);
+  return pl;
+}
+addRoomLight(-4.5,-2,0x1a2860,.5);  // salon (cool blue)
+addRoomLight(4.5,-2,0x1a2040,.4);   // cocina
+addRoomLight(0,-6.5,0x0a2040,.3);   // terraza (very dim)
+addRoomLight(-6,2.5,0x201806,.5);   // hab1 warm
+addRoomLight(0,2.5,0x201806,.5);    // hab2 warm
+addRoomLight(6,2.5,0x180e06,.5);    // dorm warm
+addRoomLight(-7,6,.8,0x0a1520,.3);  // entrada
+
+/* ─ PARTICLES (dust/atmosphere) ─ */
+const partGeo=new THREE.BufferGeometry();
+const partCount=300;
+const positions=new Float32Array(partCount*3);
+for(let i=0;i<partCount;i++){
+  positions[i*3]=(Math.random()-.5)*22;
+  positions[i*3+1]=Math.random()*WALL_H;
+  positions[i*3+2]=(Math.random()-.5)*18;
+}
+partGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+const partMat=new THREE.PointsMaterial({color:0x304060,size:.04,transparent:true,opacity:.6});
+const particles=new THREE.Points(partGeo,partMat);
+scene.add(particles);
+
+/* ─ SUN RAYS (volumetric fake, cones south side) ─ */
+const rayGroup=new THREE.Group();
+scene.add(rayGroup);
+
+const rayMat=new THREE.MeshBasicMaterial({
+  color:0xf59e0b,transparent:true,opacity:0,side:THREE.DoubleSide,
+});
+
+for(let i=0;i<6;i++){
+  const rGeo=new THREE.ConeGeometry(.15,6,4,1,true);
+  const rMesh=new THREE.Mesh(rGeo,rayMat.clone());
+  rMesh.rotation.x=Math.PI/2+.15;
+  rMesh.position.set(-8+i*3,2.5,8);
+  rayGroup.add(rMesh);
+}
+
+/* ══════════════════════════════════════
+   RAYCASTER + CAMERA CONTROL
+══════════════════════════════════════ */
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+
+// Simple orbit control
+let isDragging=false,lastX=0,lastY=0;
+let phi=0.7,theta=0.55,radius=32;
+let targetPhi=phi,targetTheta=theta,targetRadius=radius;
+
+function updateCamera(){
+  camera.position.x=radius*Math.sin(phi)*Math.cos(theta);
+  camera.position.y=radius*Math.cos(phi);
+  camera.position.z=radius*Math.sin(phi)*Math.sin(theta);
+  camera.lookAt(0,1,0);
+}
+updateCamera();
+
+// Pointer events
+canvas.addEventListener('pointerdown',e=>{
+  isDragging=true;lastX=e.clientX;lastY=e.clientY;
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!isDragging)return;
+  const dx=e.clientX-lastX,dy=e.clientY-lastY;
+  targetTheta-=dx*.005;
+  targetPhi=Math.max(.2,Math.min(1.4,targetPhi+dy*.005));
+  lastX=e.clientX;lastY=e.clientY;
+});
+canvas.addEventListener('pointerup',e=>{
+  if(!isDragging)return;
+  isDragging=false;
+  // tap detection
+  const dx=e.clientX-lastX,dy=e.clientY-lastY;
+  if(Math.abs(dx)<3&&Math.abs(dy)<3) handleTap(e.clientX,e.clientY);
+});
+
+// Pinch zoom
+let lastDist=0;
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===2)lastDist=0;},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    if(lastDist>0)targetRadius=Math.max(10,Math.min(55,targetRadius-(d-lastDist)*.1));
+    lastDist=d;
+  }
+},{passive:true});
+
+// Mouse wheel
+canvas.addEventListener('wheel',e=>{
+  targetRadius=Math.max(10,Math.min(55,targetRadius+e.deltaY*.04));
+});
+
+function handleTap(cx,cy){
+  mouse.x=(cx/window.innerWidth)*2-1;
+  mouse.y=-(cy/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  // collect all floor meshes
+  const targets=Object.values(meshMap);
+  const hits=raycaster.intersectObjects(targets);
+  if(hits.length>0){
+    const id=hits[0].object.userData.roomId;
+    if(id) openPanel(id);
+  } else {
+    closePanel();
+  }
+}
+
+/* ══════════════════════════════════════
+   HUD PANEL
+══════════════════════════════════════ */
+function openPanel(id){
+  const r=ROOMS_DATA[id]; if(!r)return;
+  document.getElementById('pname').textContent=r.name;
+  const tag=document.getElementById('ptag');
+  tag.textContent=r.tag; tag.className='panel-tag '+r.tagClass;
+  const pm=document.getElementById('pmetrics');
+  pm.innerHTML='';
+  r.metrics.forEach(m=>{
+    const c=document.createElement('div');
+    c.className='metric'+(m.p?' pending':'');
+    c.innerHTML=`<div class="m-ico">${m.i}</div>
+      <div class="m-v" style="color:${m.c}">${m.v}</div>
+      <div class="m-u">${m.l}</div>`;
+    pm.appendChild(c);
+  });
+  const pa=document.getElementById('pauto');
+  if(r.auto){pa.style.display='block';pa.textContent=r.auto;}
+  else pa.style.display='none';
+  document.getElementById('roomPanel').classList.add('open');
+  document.getElementById('hint').style.display='none';
+}
+function closePanel(){
+  document.getElementById('roomPanel').classList.remove('open');
+  document.getElementById('hint').style.display='block';
+}
+
+/* ══════════════════════════════════════
+   HUD CLOCK + WEATHER
+══════════════════════════════════════ */
+function updateHUD(){
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent=hh+':'+mm;
+  document.getElementById('date-str').textContent=
+    now.toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
+
+  const sol=getSolar();
+  const bld=getBlind();
+  const wxSol=document.getElementById('wx-sol');
+  wxSol.textContent=sol.label;
+  wxSol.style.color=sol.on?'#f59e0b':'#4a5568';
+  document.getElementById('wx-blind').textContent=bld.label;
+
+  // Update sun light
+  sunLight.intensity=sol.on?sol.pct*2.5:0;
+  if(sol.on){
+    const az=sol.az;
+    sunLight.position.set(
+      Math.cos(az)*15,
+      12,
+      Math.sin(az)*15+2  // +2 bias toward south
+    );
+    // warm/cool based on time
+    sunLight.color.setHex(sol.pct>.7?0xfff8e0:0xffe0a0);
+  }
+
+  // Ray opacity
+  rayGroup.children.forEach(r=>{
+    r.material.opacity=sol.on?sol.pct*.06:0;
+  });
+  if(sol.on){
+    rayGroup.position.y=Math.sin(Date.now()*.0005)*.2;
+  }
+
+  // Blinds
+  blindMeshes.forEach(bg=>{
+    bg.children.forEach((slat,i)=>{
+      if(bld.closed){
+        slat.position.y=(WALL_H-.2)-i*.24;
+        slat.material.color.setHex(0xc8a030);
+        slat.material.opacity=1;
+      } else {
+        slat.position.y=WALL_H-.1-i*.04; // stacked at top = open
+        slat.material.color.setHex(0x304050);
+        slat.material.opacity=.3;
+      }
+    });
+  });
+
+  // Sun glow in south rooms
+  roomLights.forEach((pl,i)=>{
+    if(i>=4&&i<=6){ // hab1,hab2,dorm
+      if(sol.on){
+        pl.intensity=.5+sol.pct*.6;
+        pl.color.setHex(0x302010);
+      } else {
+        pl.intensity=.3;
+        pl.color.setHex(0x101020);
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   ANIMATE
+══════════════════════════════════════ */
+const clock=new THREE.Clock();
+let frame=0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta();
+  frame++;
+
+  // Smooth camera
+  phi+=(targetPhi-phi)*.08;
+  theta+=(targetTheta-theta)*.08;
+  radius+=(targetRadius-radius)*.08;
+  updateCamera();
+
+  // Particle drift
+  const pos=particles.geometry.attributes.position;
+  for(let i=0;i<partCount;i++){
+    pos.array[i*3+1]+=dt*.02;
+    if(pos.array[i*3+1]>WALL_H) pos.array[i*3+1]=0;
+  }
+  pos.needsUpdate=true;
+
+  // Update HUD every 30 frames
+  if(frame%30===0) updateHUD();
+
+  renderer.render(scene,camera);
+}
+
+/* ══════════════════════════════════════
+   LOADING SEQUENCE
+══════════════════════════════════════ */
+const loadEl=document.getElementById('loading');
+const fillEl=document.getElementById('loadfill');
+const msgEl=document.getElementById('load-msg');
+const steps=[
+  [20,'Construyendo geometría...'],
+  [45,'Añadiendo materiales...'],
+  [65,'Calculando iluminación...'],
+  [80,'Sincronizando sensores...'],
+  [95,'Cargando datos del Búnker...'],
+  [100,'Listo.'],
+];
+let si=0;
+const loadInt=setInterval(()=>{
+  if(si>=steps.length){
+    clearInterval(loadInt);
+    setTimeout(()=>{
+      loadEl.style.opacity='0';
+      setTimeout(()=>loadEl.style.display='none',500);
+      updateHUD();
+      animate();
+    },300);
+    return;
+  }
+  fillEl.style.width=steps[si][0]+'%';
+  msgEl.textContent=steps[si][1];
+  si++;
+},300);
+</script>
+</body>
+</html>
