@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capa Cero · Diagnóstico de Soberanía</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  /* ── RESET & VARIABLES ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --surface2:  #181c22;
+    --border:    #1e2530;
+    --accent:    #00e5a0;       /* verde soberanía */
+    --danger:    #ff3b3b;       /* rojo fuga */
+    --warn:      #f59e0b;       /* ámbar */
+    --muted:     #4a5568;
+    --text:      #e2e8f0;
+    --text-dim:  #718096;
+    --mono:      'Space Mono', monospace;
+    --sans:      'Syne', sans-serif;
+    --glow-green: 0 0 20px rgba(0,229,160,.25);
+    --glow-red:   0 0 20px rgba(255,59,59,.25);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── LAYOUT ── */
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+    animation: fadeDown .6s ease both;
+  }
+
+  .logo-line {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .logo-badge {
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    letter-spacing: 2px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: var(--glow-green);
+    animation: pulse 2s infinite;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 10px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  /* ── SECCIONES · scroll-reveal ── */
+  section {
+    margin-bottom: 48px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity .55s ease, transform .55s ease;
+  }
+
+  section.reveal-pending {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  section.visible {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+  }
+
+  /* Header sigue con CSS animation directa */
+  header { opacity: 1; transform: none; }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── PANEL (TARJETA BASE) ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* ── INPUTS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  @media (max-width: 520px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+
+  label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  input[type="number"], select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 20px;
+    padding: 12px 16px;
+    border-radius: 2px;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,.1);
+  }
+
+  select { font-size: 14px; cursor: pointer; }
+  select option { background: var(--surface2); }
+
+  /* ── SLIDER ── */
+  .slider-wrap { display: flex; flex-direction: column; gap: 10px; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: var(--glow-green);
+    transition: transform .15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+  .slider-labels {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+  }
+
+  /* ── PROTOCOLO SELECTOR ── */
+  .proto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .proto-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    text-align: left;
+  }
+
+  .proto-btn:hover { border-color: var(--muted); }
+
+  .proto-btn.selected {
+    border-color: var(--accent);
+    background: rgba(0,229,160,.06);
+    box-shadow: var(--glow-green);
+  }
+
+  .proto-btn.selected-danger {
+    border-color: var(--danger);
+    background: rgba(255,59,59,.06);
+    box-shadow: var(--glow-red);
+  }
+
+  .proto-icon { font-size: 22px; margin-bottom: 6px; }
+  .proto-name { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text); }
+  .proto-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
+
+  /* ── MÉTRICAS VITALES ── */
+  .vitals {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  @media (max-width: 520px) { .vitals { grid-template-columns: 1fr; } }
+
+  .vital {
+    background: var(--surface);
+    padding: 20px;
+    transition: background .2s;
+  }
+
+  .vital:hover { background: var(--surface2); }
+
+  .vital-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .vital-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    transition: color .4s;
+  }
+
+  .vital-unit {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .color-green { color: var(--accent); }
+  .color-red   { color: var(--danger); }
+  .color-warn  { color: var(--warn); }
+  .color-dim   { color: var(--text-dim); }
+
+  /* ── CONTADOR TICKER ── */
+  .ticker-wrap {
+    background: var(--surface);
+    border: 1px solid var(--danger);
+    border-radius: 4px;
+    padding: 28px 24px;
+    text-align: center;
+    box-shadow: var(--glow-red);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ticker-wrap::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,59,59,.04) 0%, transparent 100%);
+  }
+
+  .ticker-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--danger);
+    letter-spacing: 3px;
+    margin-bottom: 12px;
+    opacity: .8;
+  }
+
+  .ticker-amount {
+    font-family: var(--mono);
+    font-size: clamp(36px, 8vw, 56px);
+    font-weight: 700;
+    color: var(--danger);
+    text-shadow: var(--glow-red);
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .ticker-sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  /* ── BARRA DE VEREDICTO ── */
+  .verdict {
+    border-radius: 4px;
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    border-left: 4px solid;
+  }
+
+  .verdict-danger { background: rgba(255,59,59,.08); border-color: var(--danger); color: var(--danger); }
+  .verdict-warn   { background: rgba(245,158,11,.08); border-color: var(--warn); color: var(--warn); }
+  .verdict-ok     { background: rgba(0,229,160,.08); border-color: var(--accent); color: var(--accent); }
+
+  /* ── GRÁFICA ── */
+  .chart-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .chart-legend {
+    display: flex; gap: 20px;
+    font-family: var(--mono); font-size: 11px;
+    margin-bottom: 16px;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  canvas#chart { width: 100%; height: 220px; display: block; }
+
+  /* ── CRUCE ROI ── */
+  .roi-box {
+    background: rgba(0,229,160,.06);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: var(--glow-green);
+    margin-top: 16px;
+  }
+
+  .roi-icon { font-size: 28px; flex-shrink: 0; }
+
+  .roi-text { font-family: var(--mono); font-size: 13px; line-height: 1.6; color: var(--accent); }
+
+  /* ── INVENTARIO ── */
+  .inventory { display: flex; flex-direction: column; gap: 10px; }
+
+  .inv-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    transition: border-color .2s;
+  }
+
+  .inv-item:hover { border-color: var(--muted); }
+
+  .inv-emoji { font-size: 18px; text-align: center; }
+
+  .inv-name { font-size: 14px; color: var(--text); }
+  .inv-note { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .inv-qty {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: right;
+    min-width: 28px;
+  }
+
+  /* ── GLOSARIO ── */
+  .glossary { display: flex; flex-direction: column; gap: 10px; }
+
+  .glos-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+
+  .glos-item:hover { border-color: var(--accent); }
+
+  .glos-term {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .glos-def {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .glos-item.open .glos-def { display: block; }
+  .glos-item.open { border-color: var(--accent); background: rgba(0,229,160,.04); }
+
+  .caret { transition: transform .2s; font-size: 10px; color: var(--muted); }
+  .glos-item.open .caret { transform: rotate(180deg); }
+
+  /* ── CTA FINAL ── */
+  .cta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) { .cta-grid { grid-template-columns: 1fr; } }
+
+  .btn {
+    padding: 16px 24px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: none;
+    transition: transform .15s, box-shadow .15s;
+    text-decoration: none;
+    display: block;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--glow-green);
+  }
+
+  .btn-primary:hover { box-shadow: 0 0 30px rgba(0,229,160,.5); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ── ANIMACIONES ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(0,229,160,.6); }
+    50%       { opacity: .4; box-shadow: 0 0 14px rgba(0,229,160,.3); }
+  }
+
+  @keyframes scanline {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(100vh); }
+  }
+
+  /* Scanline overlay sutil */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: linear-gradient(transparent 50%, rgba(0,0,0,.015) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo-line">
+      <span class="logo-badge">CAPA CERO</span>
+      <div class="status-dot"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">SISTEMA OPERATIVO</span>
+    </div>
+    <h1>Diagnóstico de<br><span>Soberanía del Hogar</span></h1>
+    <p class="subtitle">// tu casa te habla. ¿estás escuchando?</p>
+  </header>
+
+  <!-- ── ACTO I: CONFIGURACIÓN ── -->
+  <section>
+    <div class="section-label">01 · PARÁMETROS DE ENTRADA</div>
+    <div class="panel" style="display:flex;flex-direction:column;gap:20px;">
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Factura mensual (€)</label>
+          <input type="number" id="factura" value="120" min="20" max="800" step="5">
+        </div>
+        <div class="field">
+          <label>Número de estancias</label>
+          <input type="number" id="estancias" value="3" min="1" max="10">
+        </div>
+      </div>
+
+      <div class="slider-wrap">
+        <label>Inflación energética anual: <span id="inf-val" style="color:var(--accent);font-family:var(--mono)">9%</span></label>
+        <input type="range" id="inflacion" min="0" max="20" value="9" step="1">
+        <div class="slider-labels">
+          <span>0% · utopía</span>
+          <span>10% · probable</span>
+          <span>20% · crisis</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Nivel de automatización actual</label>
+        <select id="nivel">
+          <option value="0">Sin automatizar — enchufes normales, nada</option>
+          <option value="0.20">Básico — alguna bombilla o enchufe inteligente</option>
+          <option value="0.45" selected>Intermedio — varios dispositivos, aún con apps de marca</option>
+          <option value="0.75">Soberanía Total — Home Assistant local, Zigbee, sin cloud</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="display:block;margin-bottom:12px;">Protocolo de comunicación</label>
+        <div class="proto-grid">
+          <div class="proto-btn selected-danger" id="proto-wifi" onclick="setProto('wifi')">
+            <div class="proto-icon">☁️</div>
+            <div class="proto-name">Wi-Fi · Cloud</div>
+            <div class="proto-desc">Tus datos salen de casa. Amazon, Google o el fabricante de turno saben lo que haces y cuándo.</div>
+          </div>
+          <div class="proto-btn" id="proto-zigbee" onclick="setProto('zigbee')">
+            <div class="proto-icon">🛡️</div>
+            <div class="proto-name">Zigbee / Thread · Local</div>
+            <div class="proto-desc">Todo en casa. Sin intermediarios. Si internet cae, tus luces siguen funcionando.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── ACTO II: VITALES ── -->
+  <section>
+    <div class="section-label">02 · VITALES DEL SISTEMA</div>
+
+    <div class="vitals" style="margin-bottom:16px;">
+      <div class="vital">
+        <div class="vital-label">Factura actual</div>
+        <div class="vital-value color-dim" id="v-actual">120</div>
+        <div class="vital-unit">€ / mes</div>
+      </div>
+      <div class="vital">
+        <div class="vital-label">Con inflación (año 1)</div>
+        <div class="vital-value color-warn" id="v-inflada">131</div>
+        <div class="vital-unit">€ / mes</div>
+      </div>
+      <div class="vital">
+        <div class="vital-label">Ahorro potencial</div>
+        <div class="vital-value color-green" id="v-ahorro">59</div>
+        <div class="vital-unit">€ / mes</div>
+      </div>
+    </div>
+
+    <div id="verdict-box" class="verdict verdict-warn">
+      Calculando diagnóstico...
+    </div>
+  </section>
+
+  <!-- ── CONTADOR ── -->
+  <section>
+    <div class="section-label">03 · CONTADOR DE FUGA EN CURSO</div>
+
+    <!-- Toggle modo -->
+    <div style="display:flex;align-items:center;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:4px;overflow:hidden;width:fit-content;">
+      <button id="btn-modo-fuga" onclick="setModoContador('fuga')"
+        style="padding:10px 20px;font-family:var(--mono);font-size:11px;letter-spacing:1px;cursor:pointer;border:none;
+               background:var(--danger);color:#fff;transition:background .2s,color .2s;">
+        ☁️ SIN SOBERANÍA
+      </button>
+      <button id="btn-modo-sober" onclick="setModoContador('soberania')"
+        style="padding:10px 20px;font-family:var(--mono);font-size:11px;letter-spacing:1px;cursor:pointer;border:none;
+               background:var(--surface2);color:var(--text-dim);transition:background .2s,color .2s;">
+        🛡️ CON SOBERANÍA
+      </button>
+    </div>
+
+    <div id="ticker-wrap-el" class="ticker-wrap">
+      <div class="ticker-label" id="ticker-label">⬤ CAPITAL ESCAPANDO EN TIEMPO REAL</div>
+      <div class="ticker-amount">€ <span id="ticker">0.000000</span></div>
+      <div class="ticker-sub" id="ticker-sub">— €/mes · — €/año</div>
+      <!-- barra de diferencia -->
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.07);">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;">
+          COMPARATIVA MENSUAL
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.3);border-radius:3px;padding:10px;text-align:center;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--danger);letter-spacing:1px;margin-bottom:4px;">SIN SOBERANÍA</div>
+            <div style="font-family:var(--mono);font-size:18px;color:var(--danger);" id="comp-fuga">—</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);">€/mes</div>
+          </div>
+          <div style="background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.3);border-radius:3px;padding:10px;text-align:center;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:1px;margin-bottom:4px;">CON SOBERANÍA</div>
+            <div style="font-family:var(--mono);font-size:18px;color:var(--accent);" id="comp-sober">—</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);">€/mes</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;background:var(--surface2);border-radius:3px;overflow:hidden;height:6px;">
+          <div id="diff-bar" style="height:100%;background:linear-gradient(90deg,var(--danger),var(--accent));width:50%;transition:width .8s ease;"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;" id="diff-label">
+          Diferencia: — €/mes
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── GRÁFICA ── -->
+  <section>
+    <div class="section-label">04 · PROYECCIÓN 10 AÑOS</div>
+    <div class="chart-area">
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--danger)"></span>Inacción (seguir igual)</span>
+        <span><span class="legend-dot" style="background:var(--accent)"></span>Inversión Soberana</span>
+      </div>
+      <canvas id="chart"></canvas>
+    </div>
+    <div id="roi-box" class="roi-box">
+      <div class="roi-icon">⚡</div>
+      <div class="roi-text" id="roi-text">Calculando punto de cruce...</div>
+    </div>
+  </section>
+
+  <!-- ── INVENTARIO ── -->
+  <section>
+    <div class="section-label">05 · INVENTARIO NECESARIO</div>
+    <div class="inventory" id="inventory">
+      <!-- generado por JS -->
+    </div>
+  </section>
+
+  <!-- ── NODO LOCAL ── -->
+  <section>
+    <div class="section-label">06 · ESTADO DEL NODO · MICASA</div>
+    <div class="panel" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+      <div>
+        <div style="background:rgba(245,158,11,.08);border:1px solid var(--warn);border-radius:4px;padding:20px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">🏗️</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--warn);letter-spacing:2px;">INSTALACIÓN EN CURSO</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Fase 1 de 3</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+          <div style="background:rgba(0,229,160,.06);border:1px solid var(--border);border-radius:4px;padding:12px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:1px;">📶 ZIGBEE 3.0</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Datos 100% locales</div>
+          </div>
+          <div style="background:rgba(0,229,160,.06);border:1px solid var(--border);border-radius:4px;padding:12px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:1px;">⚡ LOCAL PUSH</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Respuesta instantánea</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.7;">
+        <p style="color:var(--text);font-weight:600;margin-bottom:8px;">¿Qué estamos montando?</p>
+        <p>Una <strong style="color:var(--accent)">Raspberry Pi 3</strong> con Home Assistant OS. El cerebro que no duerme, no cobra suscripción y no le manda tus hábitos a nadie.</p>
+        <br>
+        <p>Cuando esté operativo, el contador de arriba <strong style="color:var(--accent)">se ralentiza drásticamente</strong>.</p>
+        <div style="margin-top:14px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+          <div style="background:var(--accent);height:4px;width:35%;transition:width 1s ease;"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;">PROGRESO: 35% · Fase hardware completada</div>
+      </div>
+    </div>
+    <!-- enlace al plano -->
+    <a href="bunker.html"
+       style="display:flex;align-items:center;justify-content:space-between;
+              margin-top:14px;padding:14px 18px;
+              background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.3);
+              border-radius:4px;text-decoration:none;
+              font-family:var(--mono);font-size:12px;color:var(--accent);
+              transition:background .2s,box-shadow .2s;"
+       onmouseover="this.style.background='rgba(0,229,160,.1)';this.style.boxShadow='0 0 16px rgba(0,229,160,.2)'"
+       onmouseout="this.style.background='rgba(0,229,160,.06)';this.style.boxShadow='none'">
+      <span>🏠 Ver plano interactivo del Búnker en vivo →</span>
+      <span style="opacity:.5">temps · persianas · enchufes · alarma</span>
+    </a>
+  </section>
+
+  <!-- ── CASO REAL BÚNKER ── -->
+  <section>
+    <div class="section-label">07 · CASO REAL · BÚNKER EN VIVO</div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px;">
+
+      <!-- cabecera -->
+      <div style="background:rgba(0,229,160,.06);border-bottom:1px solid var(--border);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:3px;margin-bottom:4px;">LABORATORIO ACTIVO</div>
+          <div style="font-size:18px;font-weight:700;">🏠 Búnker</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">ÚLTIMA LECTURA</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--accent);">4 mayo 2026</div>
+        </div>
+      </div>
+
+      <!-- frase gancho -->
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+        <p style="font-size:14px;color:var(--text-dim);line-height:1.7;">
+          Esto no es teoría. El Búnker lleva meses monitorizando su propio consumo en tiempo real
+          con <strong style="color:var(--text)">Home Assistant + 4 enchufes Zigbee Sonoff</strong>,
+          sin ninguna nube de por medio. Estos son los datos reales del día de hoy.
+        </p>
+      </div>
+
+      <!-- métricas energía -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);">
+        <div style="background:var(--surface);padding:18px;text-align:center;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px;">CONSUMO DÍA</div>
+          <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent);">1,01</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);">kWh</div>
+        </div>
+        <div style="background:var(--surface);padding:18px;text-align:center;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px;">COSTE DÍA</div>
+          <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent);">0,25</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);">€</div>
+        </div>
+        <div style="background:var(--surface);padding:18px;text-align:center;">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:6px;">FACTURA REAL</div>
+          <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--warn);">~70</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);">€/mes</div>
+        </div>
+      </div>
+
+      <!-- gráfica firma eléctrica simulada -->
+      <div style="padding:20px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">FIRMA ELÉCTRICA 24H · 4 MAY 2026</div>
+        <canvas id="bunker-chart" style="width:100%;height:80px;display:block;"></canvas>
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;">
+          <span>02:00</span><span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>20:00</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.6;">
+          💡 <strong style="color:var(--text)">De 02:00 a 16:00 → consumo casi cero.</strong>
+          La casa vacía no gasta. A las 16:00 llega la vida — televisión, cocina, luces.
+          Eso es control real: ves exactamente la firma de tu hogar.
+        </div>
+      </div>
+
+      <!-- temperaturas -->
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:14px;">ESTADO TÉRMICO EN TIEMPO REAL</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">HAB. NIÑOS</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">50,75% HR</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--warn);">23,9°</div>
+          </div>
+
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">DORMITORIO</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">50,95% HR</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--warn);">23,6°</div>
+          </div>
+
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">SALÓN</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">Principal</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--warn);">24,4°</div>
+          </div>
+
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">TERRAZA</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">51,95% HR</div>
+            </div>
+            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent);">19,8°</div>
+          </div>
+
+        </div>
+
+        <!-- diferencial -->
+        <div style="margin-top:10px;background:rgba(0,229,160,.04);border:1px solid rgba(0,229,160,.2);border-radius:3px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">DIFERENCIAL NIÑOS → TERRAZA</div>
+          <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent);">+4,2°C</div>
+        </div>
+      </div>
+
+      <!-- hardware -->
+      <div style="padding:20px 24px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:14px;">HARDWARE EN PRODUCCIÓN</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+            <span style="font-family:var(--mono);font-size:18px;">🧠</span>
+            <span><strong>Raspberry Pi 3</strong> + Home Assistant OS — el cerebro local</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+            <span style="font-family:var(--mono);font-size:18px;">📡</span>
+            <span><strong>Sonoff ZBDongle-E</strong> — coordinador Zigbee 3.0</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+            <span style="font-family:var(--mono);font-size:18px;">🔌</span>
+            <span><strong>4× Sonoff S60ZBTPF</strong> — medición de consumo por dispositivo</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+            <span style="font-family:var(--mono);font-size:18px;">🌡️</span>
+            <span><strong>3× Zbeacon TH01</strong> — temperatura y humedad por zona</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+            <span style="font-family:var(--mono);font-size:18px;">🔒</span>
+            <span><strong>SafeMax I20</strong> — alarma integrada localmente</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:rgba(0,229,160,.04);border-left:3px solid var(--accent);border-radius:2px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.7;">
+          Sin suscripciones. Sin datos en la nube. Sin depender de que el fabricante
+          siga existiendo mañana. <strong style="color:var(--accent)">Todo corre en local, dentro de casa.</strong>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── GLOSARIO ── -->
+  <section>
+    <div class="section-label">08 · DICCIONARIO DE SUPERVIVENCIA</div>
+    <div class="glossary" id="glossary">
+      <!-- generado por JS -->
+    </div>
+  </section>
+
+  <!-- ── CTA + TARJETA COMPARTIBLE ── -->
+  <section>
+    <div class="section-label">09 · SIGUIENTE MOVIMIENTO</div>
+
+    <!-- resumen numérico -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:28px;margin-bottom:16px;text-align:center;">
+      <div style="font-size:13px;color:var(--text-dim);font-family:var(--mono);margin-bottom:8px;">AHORRO ACUMULADO EN 10 AÑOS</div>
+      <div style="font-family:var(--mono);font-size:clamp(32px,6vw,48px);font-weight:700;color:var(--accent);" id="big-saving">—</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-top:8px;">con inversión inicial estimada de <span id="inv-estimada" style="color:var(--text)">—</span></div>
+    </div>
+
+    <!-- botones principales -->
+    <div class="cta-grid" style="margin-bottom:12px;">
+      <a href="https://globaldomotica.substack.com" target="_blank" class="btn btn-primary">
+        Leer Capa Cero →
+      </a>
+      <button onclick="mostrarTarjeta()" class="btn btn-ghost">
+        📤 Compartir mi diagnóstico
+      </button>
+    </div>
+
+    <!-- TARJETA COMPARTIBLE -->
+    <div id="share-wrap" style="display:none;margin-top:20px;">
+
+      <!-- preview visual de la tarjeta -->
+      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:2px;margin-bottom:12px;">
+        PREVISUALIZACIÓN · TARJETA PARA COMPARTIR
+      </div>
+
+      <div id="share-card"
+           style="background:#080b0f;border:1px solid #00e5a0;border-radius:6px;
+                  padding:28px;max-width:480px;
+                  box-shadow:0 0 30px rgba(0,229,160,.15);
+                  font-family:'Space Mono',monospace;">
+
+        <!-- cabecera tarjeta -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #1a2030;">
+          <div>
+            <div style="background:#00e5a0;color:#000;font-size:9px;font-weight:700;padding:3px 8px;letter-spacing:2px;display:inline-block;margin-bottom:6px;">CAPA CERO</div>
+            <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:#e2e8f0;">Diagnóstico de Soberanía</div>
+          </div>
+          <div style="font-size:28px;">🛡️</div>
+        </div>
+
+        <!-- métricas -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="card-metrics">
+          <!-- generado por JS -->
+        </div>
+
+        <!-- barra de nivel -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:9px;color:#64748b;letter-spacing:2px;margin-bottom:6px;">NIVEL DE SOBERANÍA</div>
+          <div style="background:#1a2030;border-radius:2px;height:6px;overflow:hidden;">
+            <div id="card-bar" style="height:100%;background:linear-gradient(90deg,#00b37a,#00e5a0);width:0%;transition:width 1s ease;border-radius:2px;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748b;margin-top:4px;">
+            <span>Sin automatizar</span><span id="card-nivel-lbl">—</span><span>Soberanía Total</span>
+          </div>
+        </div>
+
+        <!-- footer tarjeta -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid #1a2030;">
+          <div style="font-size:10px;color:#64748b;">globaldomotica.substack.com</div>
+          <div style="font-size:10px;color:#00e5a0;" id="card-url">macacoberlin.github.io/CapaceroFinal</div>
+        </div>
+      </div>
+
+      <!-- acciones -->
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+        <button onclick="descargarPNG()" class="btn btn-primary" style="font-size:11px;padding:12px 18px;">
+          ⬇️ Descargar PNG
+        </button>
+        <button onclick="copiarTextoX()" class="btn btn-ghost" style="font-size:11px;padding:12px 18px;" id="btn-copy">
+          🐦 Copiar texto para X
+        </button>
+        <button onclick="cerrarTarjeta()" class="btn btn-ghost" style="font-size:11px;padding:12px 18px;border-color:var(--muted);color:var(--text-dim);">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <!-- texto copiable -->
+      <div id="texto-x" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:16px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.9;white-space:pre-wrap;"></div>
+
+    </div>
+
+  </section>
+
+  <footer>
+    <a href="index.html" style="color:var(--accent);text-decoration:none;font-family:var(--mono);font-size:11px;">← Inicio</a>
+    &nbsp;·&nbsp;
+    CAPA CERO · Infraestructura, robótica y soberanía del dato<br>
+    globaldomotica.substack.com · Lo que sostiene tu hogar inteligente.
+  </footer>
+
+</div>
+
+
+<script>
+/* ── STATE ── */
+let proto = 'wifi';
+let tickerAccum = 0;
+let modoContador = 'fuga';
+let _fugaMes = 0, _soberanMes = 0;
+let tickRaf = null;
+let _state = {};
+
+/* ── PROTOCOLO ── */
+function setProto(p) {
+  proto = p;
+  document.getElementById('proto-wifi').className   = p === 'wifi'   ? 'proto-btn selected-danger' : 'proto-btn';
+  document.getElementById('proto-zigbee').className = p === 'zigbee' ? 'proto-btn selected'        : 'proto-btn';
+  recalcular();
+}
+
+/* ── MODO CONTADOR ── */
+function setModoContador(modo) {
+  modoContador = modo;
+  tickerAccum  = 0;
+  const btnFuga  = document.getElementById('btn-modo-fuga');
+  const btnSober = document.getElementById('btn-modo-sober');
+  const wrap     = document.getElementById('ticker-wrap-el');
+  const label    = document.getElementById('ticker-label');
+  if (modo === 'fuga') {
+    btnFuga.style.background  = 'var(--danger)';  btnFuga.style.color = '#fff';
+    btnSober.style.background = 'var(--surface2)'; btnSober.style.color = 'var(--text-dim)';
+    wrap.style.borderColor = 'var(--danger)';
+    label.textContent = '⬤ CAPITAL ESCAPANDO EN TIEMPO REAL';
+    label.style.color = 'var(--danger)';
+    document.getElementById('ticker').parentElement.style.color = 'var(--danger)';
+  } else {
+    btnSober.style.background = 'var(--accent)'; btnSober.style.color = 'var(--bg)';
+    btnFuga.style.background  = 'var(--surface2)'; btnFuga.style.color = 'var(--text-dim)';
+    wrap.style.borderColor = 'var(--accent)';
+    label.textContent = '🛡️ GASTO CON SOBERANÍA ACTIVA';
+    label.style.color = 'var(--accent)';
+    document.getElementById('ticker').parentElement.style.color = 'var(--accent)';
+  }
+  iniciarTicker();
+}
+
+/* ── TICKER ── */
+function iniciarTicker() {
+  if (tickRaf) cancelAnimationFrame(tickRaf);
+  tickerAccum = 0;
+  const tasaMes = modoContador === 'fuga' ? _fugaMes : _soberanMes;
+  const tasaSeg = tasaMes / (30 * 24 * 3600);
+  let last = performance.now();
+  function step(now) {
+    const dt = (now - last) / 1000; last = now;
+    tickerAccum += tasaSeg * dt;
+    document.getElementById('ticker').textContent = tickerAccum.toFixed(6);
+    tickRaf = requestAnimationFrame(step);
+  }
+  tickRaf = requestAnimationFrame(step);
+}
+
+/* ── GLOSARIO ── */
+const GLOS = [
+  { t:"🧠 Home Assistant", d:"El cerebro local de tu casa. Corre en una Raspberry Pi, no en la nube de Amazon. Sin suscripción, sin caducidad, sin que nadie lea tus datos." },
+  { t:"📡 Zigbee", d:"El idioma que hablan tus dispositivos entre sí. Sin servidores externos. Si internet cae, Zigbee sigue funcionando." },
+  { t:"🧛 Consumo Vampiro", d:"Lo que consumen tus aparatos en standby. Un televisor puede costarte 50€/año sin encenderse." },
+  { t:"☁️ Cloud Dependencia", d:"Cuando tu bombilla necesita hablar con un servidor en Virginia para encenderse. Es el modelo por defecto de casi todo." },
+  { t:"🔒 Soberanía Digital", d:"Tu casa funciona aunque internet caiga, el fabricante cierre o Amazon tenga un mal día." },
+  { t:"⚡ Local Push", d:"La automatización actúa en milisegundos porque el cerebro está en casa, no a 5.000 km." },
+];
+
+/* ── RECALCULAR ── */
+function recalcular() {
+  const fEl = document.getElementById('factura');
+  const eEl = document.getElementById('estancias');
+  const nEl = document.getElementById('nivel');
+  const iEl = document.getElementById('inflacion');
+  if (!fEl || !nEl || !iEl) return;
+
+  const factura    = parseFloat(fEl.value)  || 120;
+  const estancias  = parseInt(eEl.value)    || 3;
+  const nivelVal   = parseFloat(nEl.value)  || 0;
+  const infPct     = parseFloat(iEl.value) / 100 || 0.09;
+  const nivelTxt   = nEl.options[nEl.selectedIndex] ? nEl.options[nEl.selectedIndex].text.split('—')[0].trim() : '—';
+
+  const pen        = proto === 'wifi' ? 0.10 : 0.0;
+  const ahorroPct  = Math.max(0, nivelVal - pen);
+  const factInf    = factura * (1 + infPct);
+  const ahorroMes  = factInf * ahorroPct;
+  const fugaMes    = factInf;
+  const soberMes   = factInf * (1 - ahorroPct);
+
+  _fugaMes = fugaMes; _soberanMes = soberMes;
+
+  // Vitales
+  document.getElementById('v-actual').textContent   = factura.toFixed(0);
+  document.getElementById('v-inflada').textContent  = factInf.toFixed(0);
+  document.getElementById('v-ahorro').textContent   = ahorroMes.toFixed(0);
+
+  // Comparativa
+  document.getElementById('comp-fuga').textContent  = fugaMes.toFixed(2);
+  document.getElementById('comp-sober').textContent = soberMes.toFixed(2);
+  const diff = fugaMes - soberMes;
+  document.getElementById('diff-label').textContent = `Diferencia: ${diff.toFixed(2)} €/mes · ${(diff*12).toFixed(0)} €/año`;
+  document.getElementById('diff-bar').style.width   = (ahorroPct > 0 ? Math.min(95, Math.round(ahorroPct*100)) : 50) + '%';
+  const tasaActual = modoContador === 'fuga' ? fugaMes : soberMes;
+  document.getElementById('ticker-sub').textContent = `${tasaActual.toFixed(2)} €/mes · ${(tasaActual*12).toFixed(0)} €/año`;
+
+  // Veredicto
+  const vb = document.getElementById('verdict-box');
+  if (ahorroPct === 0) {
+    vb.className = 'verdict verdict-danger';
+    vb.innerHTML = `⚠️ Sin automatización, el contador corre a máxima velocidad. Estás regalando <strong>${(fugaMes*12).toFixed(0)}€/año</strong>.`;
+  } else if (ahorroPct < 0.40) {
+    vb.className = 'verdict verdict-warn';
+    vb.innerHTML = `🔧 Nivel básico — frenas el ${(ahorroPct*100).toFixed(0)}%. La siguiente capa vale ${(factInf*(0.75-ahorroPct)).toFixed(0)}€/mes más.`;
+  } else {
+    vb.className = 'verdict verdict-ok';
+    vb.innerHTML = `🛡️ Nivel avanzado — frenas el ${(ahorroPct*100).toFixed(0)}%. Ahorro proyectado: <strong>${(ahorroMes*12).toFixed(0)}€/año</strong>.`;
+  }
+
+  iniciarTicker();
+  drawChart(factura, infPct, ahorroPct, estancias);
+  buildInventory(estancias);
+
+  _state = { factura, estancias, nivelVal, nivelTxt, infPct, ahorroPct,
+             facturaInflada: factInf, ahorroMensual: ahorroMes,
+             fugaMensual: fugaMes, soberMensual: soberMes };
+}
+
+/* ── GRÁFICA 10 AÑOS ── */
+function drawChart(factura, infPct, ahorroPct, estancias) {
+  const inv = 250 + estancias * 50;
+  const años = Array.from({length:11}, (_,i) => i);
+  const pasivo = [], soberano = [];
+  let ap = 0, as_ = inv, mesCruce = -1;
+  for (let m = 0; m <= 120; m++) {
+    const cm = factura * Math.pow(1+infPct, Math.floor(m/12));
+    ap += cm; as_ += cm * (1 - ahorroPct);
+    if (mesCruce < 0 && as_ < ap && m > 0) mesCruce = m;
+    if (m % 12 === 0) { pasivo.push(Math.round(ap)); soberano.push(Math.round(as_)); }
+  }
+  const ahorro10 = pasivo[10] - soberano[10];
+  _state.ahorro10 = ahorro10; _state.mesCruce = mesCruce; _state.inversion = inv;
+
+  document.getElementById('big-saving').textContent  = ahorro10 > 0 ? `${ahorro10.toLocaleString('es-ES')} €` : '—';
+  document.getElementById('inv-estimada').textContent = `~${inv}€`;
+
+  const roiEl = document.getElementById('roi-text');
+  const roiBox = document.getElementById('roi-box');
+  if (mesCruce > 0 && ahorroPct > 0) {
+    roiEl.textContent = `Punto de cruce: mes ${mesCruce}. La inversión (~${inv}€) se paga sola. En 10 años ahorras ${ahorro10.toLocaleString('es-ES')}€.`;
+    roiBox.style.borderColor = 'var(--accent)'; roiBox.style.background = 'rgba(0,229,160,.08)';
+    roiBox.querySelector('.roi-icon').textContent = '⚡';
+  } else if (ahorroPct === 0) {
+    roiEl.textContent = 'Sin automatización no hay cruce posible.';
+    roiBox.style.borderColor = 'var(--danger)'; roiBox.style.background = 'rgba(255,59,59,.06)';
+    roiBox.querySelector('.roi-icon').textContent = '📉';
+  } else {
+    roiEl.textContent = `La inversión se amortiza en el mes ${mesCruce > 0 ? mesCruce : '—'}.`;
+  }
+
+  const canvas = document.getElementById('chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth, H = 220;
+  canvas.width = W*dpr; canvas.height = H*dpr; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const pad = {top:10,right:10,bottom:30,left:52};
+  const cW = W-pad.left-pad.right, cH = H-pad.top-pad.bottom;
+  const maxV = Math.max(...pasivo)*1.05;
+  const xP = i => pad.left + (i/10)*cW;
+  const yP = v => pad.top  + cH*(1-v/maxV);
+
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){const y=pad.top+(cH/5)*i;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();}
+
+  // Pasivo
+  ctx.beginPath(); ctx.moveTo(xP(0),yP(0));
+  años.forEach(i=>ctx.lineTo(xP(i),yP(pasivo[i])));
+  ctx.lineTo(xP(10),pad.top+cH); ctx.lineTo(xP(0),pad.top+cH); ctx.closePath();
+  const gR=ctx.createLinearGradient(0,pad.top,0,pad.top+cH);
+  gR.addColorStop(0,'rgba(255,59,59,.3)'); gR.addColorStop(1,'rgba(255,59,59,.03)');
+  ctx.fillStyle=gR; ctx.fill();
+  ctx.beginPath(); años.forEach(i=>i===0?ctx.moveTo(xP(0),yP(pasivo[0])):ctx.lineTo(xP(i),yP(pasivo[i])));
+  ctx.strokeStyle='#ff3b3b'; ctx.lineWidth=2; ctx.stroke();
+
+  // Soberano
+  ctx.beginPath(); ctx.moveTo(xP(0),yP(inv));
+  años.forEach(i=>ctx.lineTo(xP(i),yP(soberano[i])));
+  ctx.lineTo(xP(10),pad.top+cH); ctx.lineTo(xP(0),pad.top+cH); ctx.closePath();
+  const gG=ctx.createLinearGradient(0,pad.top,0,pad.top+cH);
+  gG.addColorStop(0,'rgba(0,229,160,.25)'); gG.addColorStop(1,'rgba(0,229,160,.03)');
+  ctx.fillStyle=gG; ctx.fill();
+  ctx.beginPath(); años.forEach(i=>i===0?ctx.moveTo(xP(0),yP(soberano[0])):ctx.lineTo(xP(i),yP(soberano[i])));
+  ctx.strokeStyle='#00e5a0'; ctx.lineWidth=2; ctx.stroke();
+
+  ctx.fillStyle='rgba(255,255,255,.3)'; ctx.font='10px Space Mono,monospace'; ctx.textAlign='center';
+  años.forEach(i=>ctx.fillText(`Año ${i}`,xP(i),H-8));
+  ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const v=(maxV/4)*i;if(v>0)ctx.fillText(`${Math.round(v/1000)}k€`,pad.left-6,yP(v)+4);}
+}
+
+/* ── INVENTARIO ── */
+function buildInventory(estancias) {
+  const items = [
+    {e:'🧠',n:'Nodo local (Raspberry Pi + Home Assistant)',d:'El cerebro que no duerme ni pide suscripción',q:'1'},
+    {e:'📡',n:'Dongle Zigbee coordinador',d:'ej. Sonoff ZBDongle-E',q:'1'},
+    {e:'💡',n:'Bombillas Zigbee',d:'ej. IKEA TRÅDFRI E27',q:String(estancias*2)},
+    {e:'🔌',n:'Enchufes con medidor',d:'ej. Sonoff S60ZBTPF',q:String(estancias+1)},
+    {e:'🌡️',n:'Sensores temp/humedad',d:'Zigbee TH01',q:String(estancias)},
+  ];
+  const el = document.getElementById('inventory');
+  el.innerHTML = '';
+  items.forEach(it => {
+    const d = document.createElement('div');
+    d.className = 'inv-item';
+    d.innerHTML = `<div class="inv-emoji">${it.e}</div><div><div class="inv-name">${it.n}</div><div class="inv-note">${it.d}</div></div><div class="inv-qty">${it.q}</div>`;
+    el.appendChild(d);
+  });
+}
+
+/* ── GRÁFICA BÚNKER ── */
+function drawBunkerChart() {
+  const canvas = document.getElementById('bunker-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth, H = 80;
+  canvas.width = W*dpr; canvas.height = H*dpr; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const raw=[.02,.02,.02,.02,.02,.03,.03,.02,.02,.03,.03,.03,.04,.04,.6,1.8,1.4,.9,1.5];
+  const maxV=2.1, pts=raw.length;
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(0,229,160,.35)'); grad.addColorStop(1,'rgba(0,229,160,.02)');
+  ctx.beginPath();
+  raw.forEach((v,i)=>{const x=(i/(pts-1))*W,y=H-(v/maxV)*(H-6)-2;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();
+  raw.forEach((v,i)=>{const x=(i/(pts-1))*W,y=H-(v/maxV)*(H-6)-2;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.strokeStyle='#00e5a0';ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+  const xC=(14/(pts-1))*W;
+  ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(xC,0);ctx.lineTo(xC,H);
+  ctx.strokeStyle='rgba(245,158,11,.5)';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  ctx.font='9px Space Mono,monospace';ctx.fillStyle='rgba(245,158,11,.7)';ctx.fillText('⌂ 16:00',xC+4,12);
+}
+
+/* ── TARJETA COMPARTIBLE ── */
+function mostrarTarjeta() {
+  if (!_state.factura) recalcular();
+  const s = _state;
+  const metrics = [
+    {l:'FACTURA ACTUAL',   v:`${s.factura}€/mes`,                          c:'#64748b'},
+    {l:'CON INFLACIÓN',    v:`${(s.facturaInflada||0).toFixed(0)}€/mes`,   c:'#f59e0b'},
+    {l:'AHORRO POTENCIAL', v:`${(s.ahorroMensual||0).toFixed(0)}€/mes`,    c:'#00e5a0'},
+    {l:'AHORRO 10 AÑOS',   v:`${(s.ahorro10||0).toLocaleString('es-ES')}€`,c:'#00e5a0'},
+    {l:'ROI',              v: s.mesCruce>0?`Mes ${s.mesCruce}`:'—',        c:'#3b82f6'},
+    {l:'PROTOCOLO',        v: proto==='zigbee'?'🛡️ Local':'☁️ Cloud',    c: proto==='zigbee'?'#00e5a0':'#ff3b3b'},
+  ];
+  const grid = document.getElementById('card-metrics');
+  grid.innerHTML = '';
+  metrics.forEach(m => {
+    const el = document.createElement('div');
+    el.style.cssText = 'background:#0a0e14;border:1px solid #1a2030;border-radius:3px;padding:12px;';
+    el.innerHTML = `<div style="font-size:9px;color:#4a5568;letter-spacing:1px;margin-bottom:5px;">${m.l}</div><div style="font-family:Space Mono,monospace;font-size:16px;font-weight:700;color:${m.c};">${m.v}</div>`;
+    grid.appendChild(el);
+  });
+  const pct = Math.round((s.ahorroPct||0)*100);
+  document.getElementById('card-bar').style.width = pct+'%';
+  document.getElementById('card-nivel-lbl').textContent = s.nivelTxt||'—';
+  document.getElementById('share-wrap').style.display = 'block';
+  document.getElementById('texto-x').style.display = 'none';
+  setTimeout(()=>document.getElementById('share-wrap').scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+function cerrarTarjeta() { document.getElementById('share-wrap').style.display='none'; }
+
+function descargarPNG() {
+  const s=_state;
+  const W=900,H=500,cv=document.createElement('canvas');
+  cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#080b0f';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#00e5a0';ctx.lineWidth=2;ctx.strokeRect(1,1,W-2,H-2);
+  ctx.fillStyle='#00e5a0';ctx.fillRect(32,28,100,22);
+  ctx.fillStyle='#000';ctx.font='bold 11px monospace';ctx.fillText('CAPA CERO',38,43);
+  ctx.fillStyle='#e2e8f0';ctx.font='bold 30px sans-serif';ctx.fillText('Diagnóstico de Soberanía',32,88);
+  ctx.strokeStyle='#1a2030';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(32,105);ctx.lineTo(W-32,105);ctx.stroke();
+  const mets=[
+    {l:'FACTURA ACTUAL',  v:`${s.factura}€/mes`,                        c:'#64748b'},
+    {l:'CON INFLACIÓN',   v:`${(s.facturaInflada||0).toFixed(0)}€/mes`, c:'#f59e0b'},
+    {l:'AHORRO/MES',      v:`${(s.ahorroMensual||0).toFixed(0)}€`,      c:'#00e5a0'},
+    {l:'AHORRO 10 AÑOS',  v:`${(s.ahorro10||0).toLocaleString('es-ES')}€`,c:'#00e5a0'},
+    {l:'ROI',             v:s.mesCruce>0?`Mes ${s.mesCruce}`:'—',       c:'#3b82f6'},
+    {l:'PROTOCOLO',       v:proto==='zigbee'?'LOCAL 🛡️':'CLOUD ☁️',    c:proto==='zigbee'?'#00e5a0':'#ff3b3b'},
+  ];
+  const cols=3,mW=(W-64-32)/cols,mH=108;
+  mets.forEach((m,i)=>{
+    const col=i%cols,row=Math.floor(i/cols),mx=32+col*(mW+16),my=120+row*(mH+12);
+    ctx.fillStyle='#0a0e14';ctx.fillRect(mx,my,mW,mH);
+    ctx.strokeStyle='#1a2030';ctx.lineWidth=1;ctx.strokeRect(mx,my,mW,mH);
+    ctx.fillStyle='#4a5568';ctx.font='10px monospace';ctx.fillText(m.l,mx+12,my+20);
+    ctx.fillStyle=m.c;ctx.font='bold 22px monospace';ctx.fillText(m.v,mx+12,my+56);
+  });
+  const barY=H-78;
+  ctx.fillStyle='#4a5568';ctx.font='9px monospace';ctx.fillText('NIVEL DE SOBERANÍA',32,barY-8);
+  ctx.fillStyle='#1a2030';ctx.fillRect(32,barY,W-64,8);
+  const pct=Math.round((s.ahorroPct||0)*(W-64));
+  const grd=ctx.createLinearGradient(32,0,32+pct,0);
+  grd.addColorStop(0,'#00b37a');grd.addColorStop(1,'#00e5a0');
+  ctx.fillStyle=grd;ctx.fillRect(32,barY,pct,8);
+  ctx.strokeStyle='#1a2030';ctx.beginPath();ctx.moveTo(32,H-42);ctx.lineTo(W-32,H-42);ctx.stroke();
+  ctx.fillStyle='#4a5568';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText('globaldomotica.substack.com',32,H-20);
+  ctx.fillStyle='#00e5a0';ctx.textAlign='right';ctx.fillText('macacoberlin.github.io/CapaceroFinal',W-32,H-20);
+  const link=document.createElement('a');link.download='capacero-diagnostico.png';link.href=cv.toDataURL('image/png');link.click();
+}
+
+function copiarTextoX() {
+  const s=_state;
+  const texto=`🛡️ Diagnóstico Capa Cero · Mi hogar\n\n📊 Factura: ${s.factura}€/mes\n📈 Con inflación (${Math.round((s.infPct||0)*100)}%): ${(s.facturaInflada||0).toFixed(0)}€/mes\n💶 Ahorro potencial: ${(s.ahorroMensual||0).toFixed(0)}€/mes\n⏱️ ROI: ${s.mesCruce>0?`Mes ${s.mesCruce}`:'—'}\n💰 Ahorro a 10 años: ${(s.ahorro10||0).toLocaleString('es-ES')}€\n\nProtocolo: ${proto==='zigbee'?'Zigbee Local 🛡️':'Wi-Fi Cloud ☁️'}\nNivel: ${s.nivelTxt||'—'}\n\n¿Y tu casa? 👇\nhttps://macacoberlin.github.io/CapaceroFinal\n\n#CapaCero #Domotica #SoberaniaDigital`;
+  const txEl=document.getElementById('texto-x');
+  txEl.style.display='block';txEl.textContent=texto;
+  navigator.clipboard.writeText(texto).then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.textContent='✅ ¡Copiado!';btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)';
+    setTimeout(()=>{btn.textContent='🐦 Copiar texto para X';btn.style.borderColor='';btn.style.color='';},2500);
+  }).catch(()=>{});
+}
+
+/* ── SCROLL REVEAL ── */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); e.target.classList.remove('reveal-pending'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.05 });
+
+document.querySelectorAll('section').forEach((s, i) => {
+  if (i >= 4) { s.classList.add('reveal-pending'); s.style.transitionDelay = `${Math.min((i-4)*0.05,0.2)}s`; }
+  observer.observe(s);
+});
+setTimeout(() => { document.querySelectorAll('section.reveal-pending').forEach(s => { s.classList.add('visible'); s.classList.remove('reveal-pending'); }); }, 1200);
+
+/* ── EVENTOS ── */
+document.getElementById('inflacion').addEventListener('input', e => {
+  document.getElementById('inf-val').textContent = e.target.value + '%';
+  recalcular();
+});
+['factura','estancias','nivel'].forEach(id => document.getElementById(id).addEventListener('input', recalcular));
+
+/* ── INIT ── */
+function init() {
+  // Poblar glosario
+  const glosEl = document.getElementById('glossary');
+  if (glosEl) {
+    GLOS.forEach(g => {
+      const d = document.createElement('div');
+      d.className = 'glos-item';
+      d.innerHTML = `<div class="glos-term">${g.t} <span class="caret">▼</span></div><div class="glos-def">${g.d}</div>`;
+      d.onclick = () => d.classList.toggle('open');
+      glosEl.appendChild(d);
+    });
+  }
+  // Calcular con doble rAF para garantizar DOM pintado
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      recalcular();
+      setTimeout(drawBunkerChart, 400);
+    });
+  });
+  window.addEventListener('resize', () => { recalcular(); drawBunkerChart(); });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
